@@ -1,13 +1,12 @@
 import { Atom, atom } from "jotai"
-import { Context, createRef, useState } from "react"
+import { Context } from "react"
 import {
     getMetasymbolAncestors,
     getMetasymbolContext, 
     getMetasymbolName,
     ROOT_METASYMBOL,
 } from "./metasymbols"
-import { Store, useStore } from "./use-store"
-import { DispatcherParams, makeStoreDispatcher, withDispatcher, withDispatcherAsync } from "./store-dispatcher"
+import { DispatcherParams, makeStoreDispatcher, withDispatcher } from "./store-dispatcher"
 import { Vunc0 } from "../types"
 
 function family <T> (init: (key: symbol) => Atom <T>) {
@@ -53,11 +52,12 @@ function lazyRef <T> (init: () => T): LazyRefObject <T> {
 }
 
 export function createStore <T extends Promise <any>> (hook: () => T): any/*Store <T>*/ {
+    const labelRef = { current: "" }
     console.log ("[createStore]")
+    console.log (labelRef)
     
     let initialized = false
     
-    const labelRef = { current: "" }
     const labelCallbacks = new Set <Vunc0> ()
     const setLabel = (nextLabel: string) => {
       if (labelRef.current) {
@@ -124,16 +124,17 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
         
         const dispatcher = makeStoreDispatcher (prefs)
         
-        return (selfAtom = atom (async (get) => {
-            console.group ("[createdAtom]", labelRef)
+        return (selfAtom = atom ((get) => {
+            console.group ("[createdAtom]", labelRef.current || labelRef)
             
             try {
                 prefs.readAtom = get
                 
                 // const res = withDispatcher (dispatcher, hook)
                 console.group ("async")
+                let res
                 try {
-                    const res = await withDispatcherAsync (dispatcher, hook)
+                    res = withDispatcher (dispatcher, hook)
                 }
                 finally {
                     console.groupEnd ()
@@ -171,7 +172,8 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
         
         contextsRef.current // get that initialized
         
-        console.group ("[selfFamily]", labelRef)
+        console.group ("[selfFamily]", labelRef.current || labelRef)
+        
         try {
             const atomRef = lazyRef (() => createAtom (metasymbol))
             
@@ -188,13 +190,13 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
             })
             
             // TODO: Experiment with setting the initialAtom in to the map
-            return (selfAtom = atom (async (get) => {
-                console.group ("[selfAtom]", labelRef)
+            return (selfAtom = atom ((get) => {
+                console.group ("[selfAtom]", labelRef.current || labelRef)
                 try {
                     // need atom to run so that context can be populated
                     if (!initialized) {
-                        const res = get (atomRef.current)
-                        if (res.status === "pending") await res
+                        console.log ("initializing")
+                        get (atomRef.current)
                     }
                     const scope: symbol = getScope (metasymbol)
                     

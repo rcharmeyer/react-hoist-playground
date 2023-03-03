@@ -1,3 +1,5 @@
+import { memoize } from "lodash-es"
+
 const URL = `https://images.lululemon.com/is/image/lululemon`
 const QS = "fit=crop,1&op_usm=0.8,1,10,0&fmt=webp&qlt=90,1&op_sharpen=0&resMode=sharp2&iccEmbed=0&printRes=72"
 const swatchUrl = (code: string) => `${URL}/${code}?wid=34&hei=34&${QS}`
@@ -25,11 +27,12 @@ async function delay (ms: number) {
     })
 }
 
-export async function fetchProductById (id: string) {
+export const fetchProductById = memoize (async (id: string) => {
+    console.log ("fetching product data")
     await delay (1000)
     const res = PRODUCTS.find (p => p.id === id)
     return res as Product
-}
+})
 
 PRODUCTS.push ({
     id: "align-25",

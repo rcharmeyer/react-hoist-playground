@@ -20,7 +20,7 @@ type ReactPromise <T> = Promise<T> & {
     reason?: unknown
 }
 
-function readPromise <T> (promise: ReactPromise <T>): T {
+export function use <T> (promise: ReactPromise <T>): T {
     if (promise.status === 'pending') {
         throw promise
     } 
@@ -126,11 +126,16 @@ type HookMount <T extends Func> = Func <Hook <T>, Parameters <T>>
 
 export function withDispatcher <T> (dispatcher: Dispatcher, func: () => T): T {
     const prev = ReactCurrentDispatcher.current
-    ReactCurrentDispatcher.current = dispatcher
-    ReactCurrentDispatcher.current.readContext = prev.readContext
-    const res = func()
-    ReactCurrentDispatcher.current = prev
-    return res
+    try {
+        ReactCurrentDispatcher.current = dispatcher
+        ReactCurrentDispatcher.current.readContext = prev.readContext
+        const res = func()
+        console.assert (! (res instanceof Promise), "withDispatcher can't return promise")
+        return res
+    }
+    finally {
+        ReactCurrentDispatcher.current = prev
+    }
 }
 
 export async function withDispatcherAsync <T> (dispatcher: Dispatcher, func: () => T): Promise <T> {
@@ -164,7 +169,7 @@ export async function withDispatcherAsync <T> (dispatcher: Dispatcher, func: () 
 
 export function makeStoreDispatcher (prefs: DispatcherParams) {
     const d: Dispatcher = {} as any
-
+    
     d.useDebugLabel = (label: string) => {
         prefs.index += 1
         if (! prefs.mounted) prefs.setLabel (label)
@@ -181,13 +186,16 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
     d.useJotaiValue = (argAtom: Atom <any>) => {
         prefs.index += 1
         const res = prefs.readAtom (argAtom)
+        console.assert (! (res instanceof Promise), "useJotaiValue can't return a promise")
+        /*
         if (res instanceof Promise) {
             console.group ("[useJotaiValue]")
             console.log (res.status)
             console.log (res.value)
             console.groupEnd()
-            return readPromise (res)
+            return use (res)
         }
+        */
         return res
     }
     d.useMetasymbolContext = () => {

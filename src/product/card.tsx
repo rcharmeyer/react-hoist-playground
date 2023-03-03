@@ -1,13 +1,14 @@
 import { Suspense, useContext, useDebugValue, useMemo, useRef, useState } from "react"
 import { fetchProductById, Product, PRODUCTS, Skudata } from "../data/product"
 import { hoist, useDebugLabel } from "../hoist"
+import { use } from "../hoist/store-dispatcher"
 import { useEvent } from "../hooks"
 import { ProductIdContext } from "./context"
 
 /* TODO: be able to hoist with Suspense, */
-const useProductDataById = hoist (async (pid: string) => {
+const useProductDataById = hoist ((pid: string) => {
     console.log ("[useProductDataById]", pid)
-    return await fetchProductById (pid)
+    return use (fetchProductById (pid))
 })
 
 const useProduct2 = hoist (() => {
