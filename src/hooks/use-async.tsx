@@ -1,11 +1,11 @@
-import { atom } from "jotai";
-import { Fanc1, Func1 } from "../types";
-import { useJotaiValue } from "../hoist";
-import { atomFamily } from "jotai/utils";
+import { Fanc } from "../types";
+import { readPromise } from "../hoist/store-dispatcher";
+import { memoize } from "lodash-es";
 
-export function makeAsyncByKey <T> (func: Fanc1 <T, string>): Func1 <T, string> {
-    const theAtomFamily = atomFamily ((arg: string) => atom (async () => {
-        return await func (arg)
-    }))
-    return (arg: string) => useJotaiValue (theAtomFamily (arg))
+export function makeAsync <T extends Fanc> (func: T) {
+    const memoized = memoize (func)
+    return (...args: Parameters <T>) => {
+        const res = readPromise (memoized (...args)) 
+        return res as Awaited <ReturnType <T>>
+    }
 }

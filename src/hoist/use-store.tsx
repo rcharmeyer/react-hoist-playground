@@ -18,10 +18,7 @@ export const useJotaiValue: JotaiHook = (theAtom: Atom<any>) => {
 
 export function useStoreAux <S extends Store> (store: S): InferStoreType <S> {
     const metasymbol = useMetasymbolContext () // doesn't change
-    const ref = useRef <any> ()
-    ref.current ||= store (metasymbol)
-
-    return useJotaiValue (ref.current as Atom <InferStoreType <S>>)
+    return useJotaiValue (store (metasymbol))
 }
 
 export const useStore: typeof useStoreAux = (store) => {

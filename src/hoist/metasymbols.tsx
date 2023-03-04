@@ -62,6 +62,15 @@ export function getMetasymbolAncestors (symbol: symbol) {
   return res
 }
 
+// External Helpers
+
+export function getMetasymbolAncestorsAmountByContext (symbol: symbol, context: Context<any>) {
+  const metasymbols = getMetasymbolAncestors (symbol)
+      .filter (s => context === getMetasymbolContext (s))
+      
+  return metasymbols.length
+}
+
 // CONTEXT
 
 const MetasymbolContext = createContext <symbol> (ROOT_METASYMBOL)
@@ -77,12 +86,10 @@ export function useMetasymbolContext () {
 
 type ReadRef = { current: () => unknown }
 
-let initialValue = undefined
-
 // TODO: Handle initial render edge cases
 export const atomsByMetasymbol = atomFamily ((metasymbol: symbol) => {
   console.group ("[atomsByMetasymbol]")
-  const theAtom = atom (initialValue)
+  const theAtom = atom (atomsByMetasymbol.initialValue)
   
   const name = getMetasymbolName (metasymbol)
   console.log ("name:", name)
@@ -98,6 +105,7 @@ export const atomsByMetasymbol = atomFamily ((metasymbol: symbol) => {
 let WORD_N = 0
 
 export const makeContextHoistable = memoize ((context: Context <any>) => {
+  console.assert (!!context.displayName, "context.displayName")
   console.assert (!context.hoistable, "context is already hoistable")
   context.hoistable = true
 
@@ -114,10 +122,14 @@ export const makeContextHoistable = memoize ((context: Context <any>) => {
     const initializing = ! symbolRef.current
     if (initializing) {
       symbolRef.current = Symbol()
+      
+      const layer = getMetasymbolAncestorsAmountByContext (parentMetasymbol, context)
+      const name = `${context.displayName}[${layer}]=${value}`
+      
       const ancestors = getMetasymbolAncestors (parentMetasymbol)
       MAPS.getMetasymbolAncestors.set (symbolRef.current, [ symbolRef.current, ...ancestors ])
       MAPS.getMetasymbolContext.set (symbolRef.current, context)
-      MAPS.getMetasymbolName.set (symbolRef.current, `${WORD_N++}`)
+      MAPS.getMetasymbolName.set (symbolRef.current, `${name}`)
       
       console.log ("[makeContextHoistable]", {
         displayName: context.displayName,
@@ -127,9 +139,9 @@ export const makeContextHoistable = memoize ((context: Context <any>) => {
       })
     }
 
-    initialValue = value
+    atomsByMetasymbol.initialValue = value
     const setValue = useSetAtom (atomsByMetasymbol (symbolRef.current))
-    initialValue = undefined
+    atomsByMetasymbol.initialValue = undefined
 
     useEffect (() => {
       setValue (value)

@@ -1,14 +1,28 @@
 import { Atom, atom } from "jotai"
-import { Context, createRef, useState } from "react"
+import { Context } from "react"
 import {
     getMetasymbolAncestors,
     getMetasymbolContext, 
     getMetasymbolName,
     ROOT_METASYMBOL,
 } from "./metasymbols"
-import { Store, useStore } from "./use-store"
-import { DispatcherParams, makeStoreDispatcher, withDispatcher, withDispatcherAsync } from "./store-dispatcher"
-import { Vunc0 } from "../types"
+import { DispatcherParams, makeStateAtom, makeStoreDispatcher, readPromise, withDispatcher } from "./store-dispatcher"
+import { Func, Vunc0 } from "../types"
+
+function makeReloadAtom (debugLabel: string) {
+    const [ reloadAtom, setDebugLabel ] = makeStateAtom (Symbol())
+                
+    const res = atom ((get) => {
+        const [ , setSymbol ] = get (reloadAtom)
+        return () => setSymbol (Symbol())
+    })
+    
+    const label = `reload(${debugLabel})`
+    setDebugLabel (label)
+    res.debugLabel = label
+    
+    return res
+}
 
 function family <T> (init: (key: symbol) => Atom <T>) {
     const map = new Map <symbol, Atom<T>>()
@@ -32,6 +46,10 @@ type LazyRefObject <T> = {
     current: T,
 }
 
+function _do <T extends Func> (func: T) {
+    return func()
+}
+
 function lazyRef <T> (init: () => T): LazyRefObject <T> {
     let value: T
     let initialized = false
@@ -53,11 +71,12 @@ function lazyRef <T> (init: () => T): LazyRefObject <T> {
 }
 
 export function createStore <T extends Promise <any>> (hook: () => T): any/*Store <T>*/ {
+    const labelRef = { current: "" }
     console.log ("[createStore]")
+    console.log (labelRef)
     
     let initialized = false
     
-    const labelRef = { current: "" }
     const labelCallbacks = new Set <Vunc0> ()
     const setLabel = (nextLabel: string) => {
       if (labelRef.current) {
@@ -76,6 +95,20 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     let selfFamily: any
     
     const contextsRef = lazyRef (() => {
+        selfFamily.labelRef = labelRef
+        selfFamily.debug = () => {
+            console.group ("[selfFamily.debug]", selfFamily.labelRef.current)
+            try {
+                for (const [ key, val ] of selfFamily.map.entries()) {
+                    const entryName = getMetasymbolName (key)
+                    console.log (entryName, val)
+                }
+            }
+            finally {
+                console.groupEnd()
+            }
+        }
+        
         selfFamily.contexts = new Set ()
         return selfFamily.contexts
     })
@@ -94,7 +127,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     }
 
     function createAtom (metasymbol: symbol) {
-        let selfAtom: Atom <any> = null as any
+        let createdAtom: Atom <any> = null as any
       
         function writeLabel () {
             console.group ("[writeLabel]")
@@ -102,7 +135,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
             const scopeName = getMetasymbolName (trueScope)
             const debugLabel = `${labelRef.current}@${scopeName}`
             
-            selfAtom.debugLabel = debugLabel
+            createdAtom.debugLabel = debugLabel
             
             const len = prefs.hooks.length
             for (let i = 0; i < len; i++) {
@@ -124,43 +157,56 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
         
         const dispatcher = makeStoreDispatcher (prefs)
         
-        return (selfAtom = atom (async (get) => {
-            console.group ("[createdAtom]", labelRef)
+        const reloadAtom = makeReloadAtom (labelRef.current)
+        
+        return (createdAtom = atom ((get) => {
+            const reload = get (reloadAtom)
+            
+            console.group ("[createdAtom]", labelRef.current || labelRef)
             
             try {
                 prefs.readAtom = get
+                // clear hooks if error or suspense
+                if (!prefs.mounted) prefs.hooks = []
                 
-                // const res = withDispatcher (dispatcher, hook)
-                console.group ("async")
-                try {
-                    const res = await withDispatcherAsync (dispatcher, hook)
-                }
-                finally {
-                    console.groupEnd ()
-                }
+                selfFamily?.debug?.()
+                console.log ("name =", getMetasymbolName (metasymbol))
                 
+                const res = withDispatcher (dispatcher, hook)                
                 console.assert (! (res instanceof Promise), "! (res instanceof Promise)")
                 
                 // set debug label
                 if (!prefs.mounted) {
-                    if (initialized) console.log ("mounted")
-                    else console.log ("initialized")
+                    if (!initialized) console.log ("initialized store")
+                    console.log ("mounted")
                     initialized = true
                     
                     prefs.mounted = true
                     writeLabel ()
                 }
-
-                // initialized = true
-                prefs.index = -1
                 
                 return res
             }
             catch (thrown) {
-                console.log ("caught")
+                console.log ("caught", thrown)
+                if (thrown instanceof Promise) {
+                    console.assert (thrown.status === "pending", "promise must be pending")
+                    
+                    readPromise (_do (async () => {
+                        await thrown
+                        console.log (thrown)
+                        console.assert (thrown.status, "promise should have a status")
+                        console.assert (thrown.status === "fulfilled", "promise should be fulfilled")
+                        console.log ("promise has been concluded")
+                        reload ()
+                    }))
+                    
+                    console.assert (false, "readPromise should have thrown")
+                }
                 throw thrown
             }
             finally {
+                prefs.index = -1
                 console.groupEnd ()
             }
         }))
@@ -171,7 +217,8 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
         
         contextsRef.current // get that initialized
         
-        console.group ("[selfFamily]", labelRef)
+        console.group ("[selfFamily]", labelRef.current || labelRef)
+        
         try {
             const atomRef = lazyRef (() => createAtom (metasymbol))
             
@@ -188,13 +235,14 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
             })
             
             // TODO: Experiment with setting the initialAtom in to the map
-            return (selfAtom = atom (async (get) => {
-                console.group ("[selfAtom]", labelRef)
+            return (selfAtom = atom ((get) => {
+                console.group ("[selfAtom]", labelRef.current || labelRef)
                 try {
                     // need atom to run so that context can be populated
                     if (!initialized) {
-                        const res = get (atomRef.current)
-                        if (res.status === "pending") await res
+                        console.log ("initializing selfAtom")
+                        get (atomRef.current)
+                        console.log ("initialized selfAtom")
                     }
                     const scope: symbol = getScope (metasymbol)
                     
@@ -211,6 +259,11 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
                 }
                 catch (thrown) {
                     console.log ("caught")
+                    if (thrown instanceof Promise) {
+                        console.log (thrown)
+                        console.assert (thrown.status, "promise should have a status")
+                        console.assert (thrown.status === "pending", "thrown.status === 'pending'")
+                    }
                     throw thrown
                 }
                 finally {

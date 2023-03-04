@@ -4,6 +4,7 @@ import {
   atomsByMetasymbol,
   getMetasymbolAncestors,
   getMetasymbolContext, 
+  getMetasymbolName, 
   useMetasymbolContext,
 } from "./metasymbols"
 import { ReactCurrentDispatcher } from "./dispatcher"
@@ -12,15 +13,13 @@ import { Func, Func0, Func1, Func2, Runc1, Vunc1 } from "../types"
 import { useStoreAux, useJotaiValue } from "./use-store"
 import { atomWithReducer } from "jotai/utils"
 
-let count = 0
-
 type ReactPromise <T> = Promise<T> & {
     status?: 'pending' | 'fulfilled' | 'rejected'
     value?: T
     reason?: unknown
 }
 
-function readPromise <T> (promise: ReactPromise <T>): T {
+export function readPromise <T> (promise: ReactPromise <T>): T {
     if (promise.status === 'pending') {
         throw promise
     } 
@@ -29,20 +28,28 @@ function readPromise <T> (promise: ReactPromise <T>): T {
     } 
     else if (promise.status === 'rejected') {
         throw promise.reason
-    } 
+    }
     else {
         promise.status = 'pending'
         promise.then(
-        (v) => {
-            promise.status = 'fulfilled'
-            promise.value = v
-        },
-        (e) => {
-            promise.status = 'rejected'
-            promise.reason = e
-        })
+            (v) => {
+                promise.status = 'fulfilled'
+                promise.value = v
+            },
+            (e) => {
+                promise.status = 'rejected'
+                promise.reason = e
+            }
+        )
         throw promise
     }
+}
+
+export const use: typeof readPromise = (promise) => {
+    if (ReactCurrentDispatcher.current.use) {
+        ReactCurrentDispatcher.current.use (promise)
+    }
+    return readPromise (promise)
 }
 
 export function makeStateAtom (initialState: any) {
@@ -126,11 +133,17 @@ type HookMount <T extends Func> = Func <Hook <T>, Parameters <T>>
 
 export function withDispatcher <T> (dispatcher: Dispatcher, func: () => T): T {
     const prev = ReactCurrentDispatcher.current
-    ReactCurrentDispatcher.current = dispatcher
-    ReactCurrentDispatcher.current.readContext = prev.readContext
-    const res = func()
-    ReactCurrentDispatcher.current = prev
-    return res
+    try {
+        ReactCurrentDispatcher.current = dispatcher
+        ReactCurrentDispatcher.current.readContext = prev.readContext
+        const res = func()
+        console.assert (!!res, "withDispatcher should be returning a defined value")
+        console.assert (! (res instanceof Promise), "withDispatcher can't return promise")
+        return res
+    }
+    finally {
+        ReactCurrentDispatcher.current = prev
+    }
 }
 
 export async function withDispatcherAsync <T> (dispatcher: Dispatcher, func: () => T): Promise <T> {
@@ -164,30 +177,43 @@ export async function withDispatcherAsync <T> (dispatcher: Dispatcher, func: () 
 
 export function makeStoreDispatcher (prefs: DispatcherParams) {
     const d: Dispatcher = {} as any
-
+    
     d.useDebugLabel = (label: string) => {
         prefs.index += 1
         if (! prefs.mounted) prefs.setLabel (label)
     }
     d.useStore = (store) => {
-        const res = useStoreAux (store)
-        if (! prefs.mounted) {
-            store.contexts.forEach ((context) => {
-                prefs.addContext (context)
-            })
+        console.group ("useStore")
+        try {
+            const res = useStoreAux (store)
+            console.assert (! (res instanceof Promise), "useStoreAux can't return a promise")
+            
+            if (! prefs.mounted) {
+                store.contexts.forEach ((context) => {
+                    prefs.addContext (context)
+                })
+            }
+            return res
         }
-        return res
+        finally {
+            console.groupEnd ()
+        }
     }
     d.useJotaiValue = (argAtom: Atom <any>) => {
         prefs.index += 1
         const res = prefs.readAtom (argAtom)
+        console.assert (! (res instanceof Promise), "useJotaiValue can't return a promise")
+        console.log ("[useJotaiValue]", argAtom.debugLabel)
+        console.log (res)
+        /*
         if (res instanceof Promise) {
             console.group ("[useJotaiValue]")
             console.log (res.status)
             console.log (res.value)
             console.groupEnd()
-            return readPromise (res)
+            return use (res)
         }
+        */
         return res
     }
     d.useMetasymbolContext = () => {
@@ -200,7 +226,7 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
             prefs.index += 1
             const i = prefs.index
             
-            if (!prefs.mounted) prefs.hooks[i] ||= mount (...args)
+            if (!prefs.mounted) prefs.hooks[i] = mount (...args)
             const hook = prefs.hooks[i].run as T
             
             if (typeof hook === "function") {
@@ -210,6 +236,7 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
         }
     }
     
+    /*
     d.useJotaiValue = subdispatcher <typeof d.useJotaiValue> (() => {
         if (count++ >= 10) throw new Error ("Exceeded repeats")
         
@@ -243,6 +270,7 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
             setDebugLabel: () => {},
         }
     })
+    */
     
     d.useContext = subdispatcher <typeof d.useContext> ((context) => {
         console.assert (context.hoistable, "[useContext] context.hoistable")

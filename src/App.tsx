@@ -1,12 +1,15 @@
 import { Suspense } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import "./App.css";
 import { ProductPage } from "./product/card";
 
 function App () {
   return (
-    <Suspense>
-      <ProductPage />
-    </Suspense>
+    <ErrorBoundary fallback={null}>
+      <Suspense>
+        <ProductPage />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 
