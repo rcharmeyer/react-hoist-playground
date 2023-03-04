@@ -1,68 +1,62 @@
 import { Suspense, useContext, useDebugValue, useMemo, useRef, useState } from "react"
-import { fetchProductById, Product, PRODUCTS, Skudata } from "../data/product"
+import { ErrorBoundary } from "react-error-boundary"
+import { fetchProductById, getProductById, Product, Skudata } from "../data/product"
 import { hoist, useDebugLabel } from "../hoist"
-import { use } from "../hoist/store-dispatcher"
-import { useEvent } from "../hooks"
+import { makeAsync, useEvent } from "../hooks"
 import { ProductIdContext } from "./context"
 
-/* TODO: be able to hoist with Suspense, */
-const useProductDataById = hoist ((pid: string) => {
-    console.log ("[useProductDataById]", pid)
-    return use (fetchProductById (pid))
-})
+const useProductDataById = makeAsync (fetchProductById)
+// const useProductDataById = getProductById
 
-const useProduct2 = hoist (() => {
-    const pid = useContext (ProductIdContext)
-    console.log ("pid =", pid)
-    useDebugLabel (`useProduct?pid=${pid}`)
-    
-    const res = useProductDataById (pid)
-    console.log ("returns", res)
-    return res
-})
-
-// no idea why this works but if I wrap this in hoist it doesn't
-const useProduct = () => {
+// everything is returning undefined
+const useProduct = hoist (() => {
     console.group ("[useProduct]")
+    
     try {
         const pid = useContext (ProductIdContext)
         console.log ("pid =", pid)
-        useDebugLabel (`useProduct?pid=${pid}`)
-        return PRODUCTS.find (p => p.id === pid) as Product
-        /*
+        useDebugLabel (`useProduct`)
+        
         const res = useProductDataById (pid)
         console.log ("returns", res)
-        return res
-        */
-        // return await fetchProductById (pid)
+        console.assert (!!res, "expected product data")
+        
+        return res // ?? getProductById (pid)
     }
     finally {
-        console.groupEnd()
+        console.groupEnd ()
     }
-}
+})
 
-const useSkudataBy = (sku: string) => {
+// no idea why this works but if I wrap this in hoist it doesn't
+
+const useSkudataBy = hoist ((sku: string) => {
     console.log ("[useSkudataBy]", sku)
-    const pid = useContext (ProductIdContext)
-    const { skudatas } = useProduct()
     useDebugLabel (`useSkudataBy?sku=${sku}`)
+    
+    // const pid = useContext (ProductIdContext)
+    const { skudatas } = useProduct()
+    
     return useMemo (() => {
         const res = skudatas.find (s => s.id === sku)
         return res as Skudata
     }, [ sku ])
-}
+})
 
 const useSelectedSkuState = hoist (() => {
-    const id = useContext (ProductIdContext)
-    useDebugLabel (`useSelectedSku?pid=${id}`)
+    useContext (ProductIdContext)
+    useDebugLabel (`useSelectedSkuState`)
     
     const [ selectedSku, setSelectedSku ] = useState ("")
     return { selectedSku, setSelectedSku }
 })
 
-function useActiveSku () {
+const useActiveSku = hoist (() => {
+    useDebugLabel ("useActiveSku")
+    
     const { skudatas } = useProduct()
     const { selectedSku } = useSelectedSkuState ()
+    console.log ("selectedSku", selectedSku)
     
     const defaultSku = useMemo (() => {
         console.assert (!!skudatas.length)
@@ -70,12 +64,13 @@ function useActiveSku () {
     }, [ skudatas ])
     
     const res = selectedSku || defaultSku
-    useDebugValue (res)
+    // useDebugValue (res)
     console.assert (!!res)
     return res
-}
+})
 
 const useSkuSelect = hoist ((sku: string) => {
+    useDebugLabel ("useSkuSelect")
     const { selectedSku, setSelectedSku } = useSelectedSkuState ()
     const isSelected = sku === selectedSku
     
@@ -86,11 +81,21 @@ const useSkuSelect = hoist ((sku: string) => {
     return { isSelected, onSkuSelect }
 })
 
+const useActiveSkuImage = hoist (() => {
+    useDebugLabel ("useActiveSkuImage")
+    const activeSku = useActiveSku ()
+    console.log ("active sku", activeSku)
+    const { id, image } = useSkudataBy (activeSku)
+    console.assert (id === activeSku, "useSkudataBy should respond to the parameter")
+    return image
+})
+
 function Gallery (props: {
     className?: string,
 }) {
-    const activeSku = useActiveSku ()
-    const { image } = useSkudataBy (activeSku)
+    // const activeSku = useActiveSku ()
+    // const { image } = useSkudataBy (activeSku)
+    const image = useActiveSkuImage ()
     
     let className = "object-contain"
     if (props.className) className += " " + props.className
@@ -98,7 +103,7 @@ function Gallery (props: {
     return <img className={className} src={image} />
 }
 
-function ColorInput (props: { 
+function ColorInput (props: {
     sku: string,
 }) {
     const { sku } = props
@@ -145,7 +150,6 @@ function ColorField () {
     )
 }
 
-let labelsRendered = 0
 
 function ProductLabel (props: {
     className?: string,
@@ -157,15 +161,13 @@ function ProductLabel (props: {
     
     if (!ref.current) {
         ref.current = true
-        console.log ("initializing")
+        console.log ("initializing ProductLabel")
     }
-    
-    if (labelsRendered > 10) return null
     
     let product: Product
     try {
         // product = useProduct ()
-        product = useProduct2 ()
+        product = useProduct ()
         // product = useProductDataById (pid)
         console.log (product)
     }
@@ -213,7 +215,6 @@ const RECS = [
 ]
 
 function RecommenderSection () {
-    return null
     return (
         <section className="flex flex-row space-x-8">
             {RECS.map ((rec) => (
@@ -226,12 +227,9 @@ function RecommenderSection () {
 }
 
 function MainSection () {
-    return (
-        <Suspense>
-            <ProductLabel />
-        </Suspense>
-    )
-    return (
+    const fallback = <div>{"{product}"}</div>
+
+    const content = (
         <section className="flex flex-row space-between space-x-8">
             <div className="w-60">
                 <Gallery className="h-40 rounded-xl" />
@@ -243,6 +241,14 @@ function MainSection () {
                 <ColorField />
             </div>
         </section>
+    )
+    
+    return (
+        <ErrorBoundary fallback={fallback}>
+            <Suspense>
+                {content}
+            </Suspense>
+        </ErrorBoundary>
     )
 }
 

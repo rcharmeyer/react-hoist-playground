@@ -27,12 +27,16 @@ async function delay (ms: number) {
     })
 }
 
-export const fetchProductById = memoize (async (id: string) => {
-    console.log ("fetching product data")
-    await delay (1000)
+export const getProductById = (id: string) => {
+    console.log ("getting product data")
     const res = PRODUCTS.find (p => p.id === id)
     return res as Product
-})
+}
+
+export const fetchProductById = async (id: string) => {
+    console.log ("fetching product data")
+    return getProductById (id)
+}
 
 PRODUCTS.push ({
     id: "align-25",

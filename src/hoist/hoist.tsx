@@ -13,8 +13,10 @@ export function createStoreFamily <T extends Func> (hook: T): Store <ReturnType 
 
 export function hoist <T extends Func> (hook: T) {
     const storeFamily = createStoreFamily (hook)
-    return (...args: Parameters <T>): Awaited <ReturnType <T>> => {
+    return (...args: Parameters <T>): ReturnType <T> => {
         const store = storeFamily (...args)
+        console.log ("[hoist]")
+        store?.debug?.()
         return useStore (store)
     }
 }

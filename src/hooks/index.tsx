@@ -1,7 +1,7 @@
 import { Context, useCallback, useContext, useEffect, useRef, useState } from "react"
 import { Func } from "../types"
 
-export { makeAsyncByKey } from "./use-async"
+export { makeAsync } from "./use-async"
 
 function funcWrap <T extends Func> (getFunc: () => T) {
   const res: Func = (...args: Parameters <T>) => {

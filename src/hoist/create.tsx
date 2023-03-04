@@ -6,8 +6,23 @@ import {
     getMetasymbolName,
     ROOT_METASYMBOL,
 } from "./metasymbols"
-import { DispatcherParams, makeStoreDispatcher, withDispatcher } from "./store-dispatcher"
-import { Vunc0 } from "../types"
+import { DispatcherParams, makeStateAtom, makeStoreDispatcher, readPromise, withDispatcher } from "./store-dispatcher"
+import { Func, Vunc0 } from "../types"
+
+function makeReloadAtom (debugLabel: string) {
+    const [ reloadAtom, setDebugLabel ] = makeStateAtom (Symbol())
+                
+    const res = atom ((get) => {
+        const [ , setSymbol ] = get (reloadAtom)
+        return () => setSymbol (Symbol())
+    })
+    
+    const label = `reload(${debugLabel})`
+    setDebugLabel (label)
+    res.debugLabel = label
+    
+    return res
+}
 
 function family <T> (init: (key: symbol) => Atom <T>) {
     const map = new Map <symbol, Atom<T>>()
@@ -29,6 +44,10 @@ function family <T> (init: (key: symbol) => Atom <T>) {
 type LazyRefObject <T> = {
     initialized: boolean,
     current: T,
+}
+
+function _do <T extends Func> (func: T) {
+    return func()
 }
 
 function lazyRef <T> (init: () => T): LazyRefObject <T> {
@@ -76,6 +95,20 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     let selfFamily: any
     
     const contextsRef = lazyRef (() => {
+        selfFamily.labelRef = labelRef
+        selfFamily.debug = () => {
+            console.group ("[selfFamily.debug]", selfFamily.labelRef.current)
+            try {
+                for (const [ key, val ] of selfFamily.map.entries()) {
+                    const entryName = getMetasymbolName (key)
+                    console.log (entryName, val)
+                }
+            }
+            finally {
+                console.groupEnd()
+            }
+        }
+        
         selfFamily.contexts = new Set ()
         return selfFamily.contexts
     })
@@ -94,7 +127,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     }
 
     function createAtom (metasymbol: symbol) {
-        let selfAtom: Atom <any> = null as any
+        let createdAtom: Atom <any> = null as any
       
         function writeLabel () {
             console.group ("[writeLabel]")
@@ -102,7 +135,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
             const scopeName = getMetasymbolName (trueScope)
             const debugLabel = `${labelRef.current}@${scopeName}`
             
-            selfAtom.debugLabel = debugLabel
+            createdAtom.debugLabel = debugLabel
             
             const len = prefs.hooks.length
             for (let i = 0; i < len; i++) {
@@ -124,44 +157,56 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
         
         const dispatcher = makeStoreDispatcher (prefs)
         
-        return (selfAtom = atom ((get) => {
+        const reloadAtom = makeReloadAtom (labelRef.current)
+        
+        return (createdAtom = atom ((get) => {
+            const reload = get (reloadAtom)
+            
             console.group ("[createdAtom]", labelRef.current || labelRef)
             
             try {
                 prefs.readAtom = get
+                // clear hooks if error or suspense
+                if (!prefs.mounted) prefs.hooks = []
                 
-                // const res = withDispatcher (dispatcher, hook)
-                console.group ("async")
-                let res
-                try {
-                    res = withDispatcher (dispatcher, hook)
-                }
-                finally {
-                    console.groupEnd ()
-                }
+                selfFamily?.debug?.()
+                console.log ("name =", getMetasymbolName (metasymbol))
                 
+                const res = withDispatcher (dispatcher, hook)                
                 console.assert (! (res instanceof Promise), "! (res instanceof Promise)")
                 
                 // set debug label
                 if (!prefs.mounted) {
-                    if (initialized) console.log ("mounted")
-                    else console.log ("initialized")
+                    if (!initialized) console.log ("initialized store")
+                    console.log ("mounted")
                     initialized = true
                     
                     prefs.mounted = true
                     writeLabel ()
                 }
-
-                // initialized = true
-                prefs.index = -1
                 
                 return res
             }
             catch (thrown) {
-                console.log ("caught")
+                console.log ("caught", thrown)
+                if (thrown instanceof Promise) {
+                    console.assert (thrown.status === "pending", "promise must be pending")
+                    
+                    readPromise (_do (async () => {
+                        await thrown
+                        console.log (thrown)
+                        console.assert (thrown.status, "promise should have a status")
+                        console.assert (thrown.status === "fulfilled", "promise should be fulfilled")
+                        console.log ("promise has been concluded")
+                        reload ()
+                    }))
+                    
+                    console.assert (false, "readPromise should have thrown")
+                }
                 throw thrown
             }
             finally {
+                prefs.index = -1
                 console.groupEnd ()
             }
         }))
@@ -195,8 +240,9 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
                 try {
                     // need atom to run so that context can be populated
                     if (!initialized) {
-                        console.log ("initializing")
+                        console.log ("initializing selfAtom")
                         get (atomRef.current)
+                        console.log ("initialized selfAtom")
                     }
                     const scope: symbol = getScope (metasymbol)
                     
@@ -213,6 +259,11 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
                 }
                 catch (thrown) {
                     console.log ("caught")
+                    if (thrown instanceof Promise) {
+                        console.log (thrown)
+                        console.assert (thrown.status, "promise should have a status")
+                        console.assert (thrown.status === "pending", "thrown.status === 'pending'")
+                    }
                     throw thrown
                 }
                 finally {
