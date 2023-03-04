@@ -3,9 +3,9 @@ import { readPromise } from "../hoist/store-dispatcher";
 import { memoize } from "lodash-es";
 
 export function makeAsync <T extends Fanc> (func: T) {
-    const memoized = memoize (func)
-    return (...args: Parameters <T>) => {
-        const res = readPromise (memoized (...args)) 
-        return res as Awaited <ReturnType <T>>
-    }
+  const memoized = memoize (func)
+  return (...args: Parameters <T>) => {
+    const res = readPromise (memoized (...args)) 
+    return res as Awaited <ReturnType <T>>
+  }
 }

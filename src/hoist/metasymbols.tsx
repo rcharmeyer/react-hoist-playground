@@ -66,7 +66,7 @@ export function getMetasymbolAncestors (symbol: symbol) {
 
 export function getMetasymbolAncestorsAmountByContext (symbol: symbol, context: Context<any>) {
   const metasymbols = getMetasymbolAncestors (symbol)
-      .filter (s => context === getMetasymbolContext (s))
+    .filter (s => context === getMetasymbolContext (s))
       
   return metasymbols.length
 }
