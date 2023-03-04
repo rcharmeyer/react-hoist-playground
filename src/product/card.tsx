@@ -1,6 +1,6 @@
-import { Suspense, useContext, useDebugValue, useMemo, useRef, useState } from "react"
+import { Suspense, useContext, useMemo, useState } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { fetchProductById, getProductById, Product, Skudata } from "../data/product"
+import { fetchProductById, fetchRecommendationsById, getPageProductId, PRODUCTS, Skudata } from "../data/product"
 import { hoist, useDebugLabel } from "../hoist"
 import { makeAsync, useEvent } from "../hooks"
 import { ProductIdContext } from "./context"
@@ -111,7 +111,7 @@ function ColorInput (props: {
   const { swatch } = useSkudataBy (sku)
   const { isSelected, onSkuSelect } = useSkuSelect (sku)
   
-  let className = "h-6 w-6 object-cover rounded-full ring-offset-2"
+  let className = "h-6 w-6 object-cover rounded-full ring-offset-2 cursor-pointer"
   
   if (isSelected) className += " ring-1 ring-slate-400"
   else className += " ring-0 hover:ring-1 ring-slate-200"
@@ -119,11 +119,14 @@ function ColorInput (props: {
   return <img className={className} src={swatch} onClick={onSkuSelect} />
 }
 
-function ColorInputs () {
+function ColorInputs (props: {
+  amount?: number,
+}) {
   const { skudatas } = useProduct()
   
   const content = skudatas
     .map (s => s.id)
+    .slice (0, (props.amount ?? skudatas.length))
     .map (sku => <ColorInput key={sku} sku={sku} />)
   
   return <div className="flex flex-row space-x-2">{content}</div>
@@ -153,61 +156,52 @@ function ColorField () {
 function ProductLabel (props: {
   className?: string,
 }) {  
-  const pid = useContext (ProductIdContext)
-  console.group ("[ProductLabel]", pid)
-  
-  let product: Product
-  try {
-    product = useProduct ()
-    console.log (product)
-  }
-  catch (e) {
-    console.log ("caught", e)
-    if (e instanceof Promise) {
-      console.assert (e.status === "pending", "e.status === 'pending'")
-    }
-    throw e
-  }
-  finally {
-    console.groupEnd ()
-  }
-  
-  console.log ('rendering')
-  
-  const { name, price } = product
+  const { id, name, price } = useProduct ()
+  const href = `/product/${id}`
+
+  let titleClass = "font-bold text-black"
+  let priceClass = "text-sm"
+  if (props.fullName) titleClass += " text-2xl"
   
   return (
     <div className={props.className}>
-      <div className="font-bold">{name}</div>
-      <div>{price}</div>
+      <a className={titleClass} href={href}>{name}</a>
+      <div className={priceClass}>{price}</div>
     </div>
   )
 }
 
 export function ProductCard () {
   let innerClass = "p-2 space-y-2"
+  innerClass += " flex flex-col items-center"
   innerClass += " border border-slate-200 border-t-0 rounded-b-xl"
-      
+
   return (
-    <div className="w-60">
+    <div className="w-36">
       <Gallery className="rounded-t-xl" />
       <div className={innerClass}>
-        <ColorInputs />
+        <ColorInputs amount={3} />
         <ProductLabel className="text-center" />
       </div>
     </div>
   )
 }
 
-const RECS = [
-  "align-25",
-  "align-25",
-]
+const useRecommendationsById = makeAsync (fetchRecommendationsById)
+
+const useProductRecommendations = hoist (() => {
+  const pid = useContext (ProductIdContext)
+  const res = useRecommendationsById (pid)
+  console.assert (!!res?.length, "res?.length")
+  return res
+})
 
 function RecommenderSection () {
+  const recs = useProductRecommendations ()
+
   return (
     <section className="flex flex-row space-x-8">
-      {RECS.map ((rec) => (
+      {(recs || []).map ((rec) => (
         <ProductIdContext.Provider key={rec} value={rec}>
           <ProductCard />
         </ProductIdContext.Provider>
@@ -220,13 +214,13 @@ function MainSection () {
   const fallback = <div>{"{product}"}</div>
 
   const content = (
-    <section className="flex flex-row space-between space-x-8">
-      <div className="w-60">
-        <Gallery className="h-40 rounded-xl" />
+    <section className="w-full flex flex-row justify-start space-x-8">
+      <div>
+        <Gallery className="w-60 rounded-xl" />
       </div>
-      <div className="w-60 p-2 space-y-4">
+      <div className="space-y-4">
         <Suspense>
-          <ProductLabel />
+          <ProductLabel fullName />
         </Suspense>
         <ColorField />
       </div>
@@ -243,13 +237,17 @@ function MainSection () {
 }
 
 export function ProductPage () {
+  const recommendationsFallback = <div>{"{recommendations}"}</div>
+
   return (
-    <ProductIdContext.Provider value="align-25">
-      <article className="w-full space-y-8 flex flex-col items-center">
+    <ProductIdContext.Provider value={getPageProductId()}>
+      <article className="space-y-8 flex flex-col items-center">
         <MainSection />
-        <Suspense>
-          <RecommenderSection />
-        </Suspense>
+        <ErrorBoundary fallback={recommendationsFallback}>
+          <Suspense>
+            <RecommenderSection />
+          </Suspense>
+        </ErrorBoundary>
       </article>
     </ProductIdContext.Provider>
   )
