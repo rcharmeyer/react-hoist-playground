@@ -1,102 +1,17 @@
-import { Atom, atom, getDefaultStore } from "jotai"
-import React, { Context, createRef, MutableRefObject } from "react"
+import { Atom, atom } from "jotai"
+import React, { Context } from "react"
 import {
   atomsByMetasymbol,
   getMetasymbolAncestors,
   getMetasymbolContext, 
   useMetasymbolContext,
 } from "./metasymbols"
-import { ReactCurrentDispatcher } from "./dispatcher"
-import { toJotaiReadable } from "./writer"
 import { Func, Func0, Func1, Func2, Runc1, Vunc1 } from "../types"
-import { useStoreAux, useJotaiValue } from "./use-store"
+import { useStoreAux } from "./use-store"
 import { atomWithReducer } from "jotai/utils"
-
-type ReactPromise <T> = Promise<T> & {
-    status?: 'pending' | 'fulfilled' | 'rejected'
-    value?: T
-    reason?: unknown
-}
-
-export function readPromise <T> (promise: ReactPromise <T>): T {
-  if (promise.status === 'pending') {
-    throw promise
-  } 
-  else if (promise.status === 'fulfilled') {
-    return promise.value as T
-  } 
-  else if (promise.status === 'rejected') {
-    throw promise.reason
-  }
-  else {
-    promise.status = 'pending'
-    promise.then(
-      (v) => {
-        promise.status = 'fulfilled'
-        promise.value = v
-      },
-      (e) => {
-        promise.status = 'rejected'
-        promise.reason = e
-      }
-    )
-    throw promise
-  }
-}
-
-export const use: typeof readPromise = (promise) => {
-  if (ReactCurrentDispatcher.current.use) {
-    ReactCurrentDispatcher.current.use (promise)
-  }
-  return readPromise (promise)
-}
-
-export function makeStateAtom (initialState: any) {
-  const stateAtom = atom (initialState)
-  const setStateAtom = toJotaiReadable (stateAtom)
-
-  const tupleAtom = atom ((get) => {
-    const state = get (stateAtom)
-    console.log ("[tupleAtom:get]", state)
-    
-    const setState = get (setStateAtom)
-    return [state, setState] as const
-  })
-
-  const setDebugLabel = (debugLabel: string) => {
-    stateAtom.debugLabel = `${debugLabel}.state`
-    setStateAtom.debugLabel = `${debugLabel}.setState`
-    tupleAtom.debugLabel = `${debugLabel}`
-  }
-
-  return [ tupleAtom, setDebugLabel ] as const
-}
-
-function depsEqual (depsA: any, depsB: any) {
-  const lenA = !Array.isArray (depsA) ? -1 : depsA.length
-  const lenB = !Array.isArray (depsA) ? -1 : depsA.length
-  
-  console.assert (lenA === lenB, "[depsEqual] number of deps has changed")
-  
-  if (lenA < -1) return false
-  
-  for (let i = 0; i < lenA; i++) {
-      if (depsA[i] !== depsB[i]) return false
-  }
-  return true
-}
-
-function createMutableRef <T> (initialValue: T) {
-  const ref = createRef () as MutableRefObject <T>
-  ref.current = initialValue
-  return ref
-}
-
-export function useDebugLabel (label: string) {
-  if (ReactCurrentDispatcher.current.useJotaiValue) {
-    return ReactCurrentDispatcher.current.useDebugLabel (label)
-  }
-}
+import { makeStateAtom, useJotaiValue } from "./jotai"
+import { depsEqual } from "./utils"
+import { createMutableRef, useDebugLabel } from "./react-aux"
 
 export type Dispatcher = {
   useDebugLabel: typeof useDebugLabel,
@@ -130,50 +45,6 @@ export type DispatcherParams = {
 
 type HookMount <T extends Func> = Func <Hook <T>, Parameters <T>>
 
-export function withDispatcher <T> (dispatcher: Dispatcher, func: () => T): T {
-  const prev = ReactCurrentDispatcher.current
-  try {
-    ReactCurrentDispatcher.current = dispatcher
-    ReactCurrentDispatcher.current.readContext = prev.readContext
-    const res = func()
-    console.assert (!!res, "withDispatcher should be returning a defined value")
-    console.assert (! (res instanceof Promise), "withDispatcher can't return promise")
-    return res
-  }
-  finally {
-    ReactCurrentDispatcher.current = prev
-  }
-}
-
-export async function withDispatcherAsync <T> (dispatcher: Dispatcher, func: () => T): Promise <T> {
-  let promise: Promise<any>|null = Promise.resolve ()
-  let count = 0
-  
-  while (promise) {
-    console.log (`promises count = ${count++}`)
-    
-    let prev
-    try {
-      await promise
-      promise = null
-      
-      prev = ReactCurrentDispatcher.current
-      ReactCurrentDispatcher.current = dispatcher
-      return func()
-    }
-    catch (thrown) {
-      if (thrown instanceof Promise) promise = thrown
-      throw thrown
-    }
-    finally {
-      if (prev) ReactCurrentDispatcher.current = prev
-    }
-  }
-  
-  console.assert (false, "[withDispatcherAsync] should have returned")
-  return Promise.reject ("withDispatcherAsync internal error")
-}
-
 export function makeStoreDispatcher (prefs: DispatcherParams) {
   const d: Dispatcher = {} as any
   
@@ -184,7 +55,7 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
   d.useStore = (store) => {
     console.group ("useStore")
     try {
-      const res = useStoreAux (store)
+      const res = prefs.readAtom (store (prefs.metasymbol))
       console.assert (! (res instanceof Promise), "useStoreAux can't return a promise")
       
       if (! prefs.mounted) {
@@ -197,17 +68,6 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
     finally {
       console.groupEnd ()
     }
-  }
-  d.useJotaiValue = (argAtom: Atom <any>) => {
-    prefs.index += 1
-    const res = prefs.readAtom (argAtom)
-    console.assert (! (res instanceof Promise), "useJotaiValue can't return a promise")
-
-    return res
-  }
-  d.useMetasymbolContext = () => {
-    prefs.index += 1
-    return prefs.metasymbol
   }
     
   function subdispatcher <T extends Func> (mount: HookMount <T>) {

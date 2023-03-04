@@ -1,9 +1,9 @@
-import { atom, useSetAtom } from "jotai"
+import { Atom, atom, useSetAtom } from "jotai"
 import { atomFamily } from "jotai/utils"
 import { Context, createContext, memo, PropsWithChildren, Suspense, useContext, useEffect, useRef } from "react"
 
 import { memoize } from "lodash-es"
-import { ReactCurrentDispatcher } from "./dispatcher"
+import { makeDispatchable } from "./dispatcher"
 
 // HELPER
 
@@ -77,19 +77,14 @@ const MetasymbolContext = createContext <symbol> (ROOT_METASYMBOL)
 MetasymbolContext.displayName = "MetasymbolContext"
 makeContextMemoized (MetasymbolContext)
 
-export function useMetasymbolContext () {
-  if (ReactCurrentDispatcher.current.useMetasymbolContext) {
-    return ReactCurrentDispatcher.current.useMetasymbolContext ()
-  }
-  return useContext (MetasymbolContext)
-}
+export const useMetasymbolContext = makeDispatchable ("useMetasymbolContext", () => useContext (MetasymbolContext))
 
 type ReadRef = { current: () => unknown }
 
 // TODO: Handle initial render edge cases
 export const atomsByMetasymbol = atomFamily ((metasymbol: symbol) => {
   console.group ("[atomsByMetasymbol]")
-  const theAtom = atom (atomsByMetasymbol.initialValue)
+  const theAtom: Atom <any> = atom (atomsByMetasymbol.initialValue)
   
   const name = getMetasymbolName (metasymbol)
   console.log ("name:", name)
@@ -101,8 +96,6 @@ export const atomsByMetasymbol = atomFamily ((metasymbol: symbol) => {
   console.groupEnd ()
   return theAtom
 })
-
-let WORD_N = 0
 
 export const makeContextHoistable = memoize ((context: Context <any>) => {
   console.assert (!!context.displayName, "context.displayName")

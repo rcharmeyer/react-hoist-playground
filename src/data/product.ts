@@ -185,5 +185,4 @@ for (let i = 0; i < len; i++) {
     if (i === j) continue
     PRODUCT_RECS [pid].push (PRODUCTS[j].id)
   }
-
 }
