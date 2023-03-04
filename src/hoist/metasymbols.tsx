@@ -40,9 +40,7 @@ MAPS.getMetasymbolContext.set (ROOT_METASYMBOL, RootContext)
 MAPS.getMetasymbolAncestors.set (ROOT_METASYMBOL, [ ROOT_METASYMBOL ])
 MAPS.getMetasymbolName.set (ROOT_METASYMBOL, "_root")
 
-if (typeof window !== "undefined") {
-  window.MAPS = MAPS
-}
+// if (typeof window !== "undefined") window.MAPS = MAPS
 
 export function getMetasymbolContext (symbol: symbol) {
   const res = MAPS.getMetasymbolContext.get (symbol) as Context <unknown>
@@ -67,7 +65,6 @@ export function getMetasymbolAncestors (symbol: symbol) {
 export function getMetasymbolAncestorsAmountByContext (symbol: symbol, context: Context<any>) {
   const metasymbols = getMetasymbolAncestors (symbol)
     .filter (s => context === getMetasymbolContext (s))
-      
   return metasymbols.length
 }
 
@@ -77,7 +74,7 @@ const MetasymbolContext = createContext <symbol> (ROOT_METASYMBOL)
 MetasymbolContext.displayName = "MetasymbolContext"
 makeContextMemoized (MetasymbolContext)
 
-export const useMetasymbolContext = makeDispatchable ("useMetasymbolContext", () => useContext (MetasymbolContext))
+export const useMetasymbolContext = () => useContext (MetasymbolContext)
 
 type ReadRef = { current: () => unknown }
 
@@ -123,13 +120,6 @@ export const makeContextHoistable = memoize ((context: Context <any>) => {
       MAPS.getMetasymbolAncestors.set (symbolRef.current, [ symbolRef.current, ...ancestors ])
       MAPS.getMetasymbolContext.set (symbolRef.current, context)
       MAPS.getMetasymbolName.set (symbolRef.current, `${name}`)
-      
-      console.log ("[makeContextHoistable]", {
-        displayName: context.displayName,
-        ancestors: MAPS.getMetasymbolAncestors.get (symbolRef.current),
-        context: MAPS.getMetasymbolContext.get (symbolRef.current),
-        name: MAPS.getMetasymbolName.get (symbolRef.current),
-      })
     }
 
     atomsByMetasymbol.initialValue = value

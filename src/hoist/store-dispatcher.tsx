@@ -1,23 +1,20 @@
 import { Atom, atom } from "jotai"
-import React, { Context } from "react"
+import React, { Context, DependencyList } from "react"
 import {
   atomsByMetasymbol,
   getMetasymbolAncestors,
-  getMetasymbolContext, 
-  useMetasymbolContext,
+  getMetasymbolContext,
 } from "./metasymbols"
 import { Func, Func0, Func1, Func2, Runc1, Vunc1 } from "../types"
 import { useStoreAux } from "./use-store"
 import { atomWithReducer } from "jotai/utils"
-import { makeStateAtom, useJotaiValue } from "./jotai"
+import { makeStateAtom } from "./jotai"
 import { depsEqual } from "./utils"
 import { createMutableRef, useDebugLabel } from "./react-aux"
 
 export type Dispatcher = {
   useDebugLabel: typeof useDebugLabel,
   useStore: typeof useStoreAux,
-  useJotaiValue: typeof useJotaiValue,
-  useMetasymbolContext: typeof useMetasymbolContext,
   
   useCallback: typeof React.useCallback <any>,
   useContext: typeof React.useContext <any>,
@@ -49,10 +46,12 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
   const d: Dispatcher = {} as any
   
   d.useDebugLabel = (label: string) => {
-    prefs.index += 1
+    // TODO: increase index?
     if (! prefs.mounted) prefs.setLabel (label)
   }
   d.useStore = (store) => {
+    // TODO: increase index?
+
     console.group ("useStore")
     try {
       const res = prefs.readAtom (store (prefs.metasymbol))
@@ -160,7 +159,7 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
     
   // Things with Deps
   
-  type DepHook <R = any, T = any> = Func2 <R, T, any[]>
+  type DepHook <R = any, T = any> = Func2 <R, T, DependencyList|undefined>
       
   function subdispatcherWithDeps <D extends DepHook, V = ReturnType <D>> (
     result: Func1 <ReturnType <D>, V>
@@ -195,7 +194,7 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       return theAtom
     }, deps)
   }
-    
+
   // TODO: Implement other hooks
   
   d.useLayoutEffect = () => {
