@@ -21,15 +21,6 @@ export function useGlobalWrite () {
 }
 
 export function toJotaiReadable <T extends JotaiWritable> (writable: T) {
-  /*
-  const _writable = writable
-
-  writable = atom (null, (get, set, ...args) => {
-    console.log ("writing...", ...args)
-    set (_writable, ...args)
-  }) as T
-  */
-
   return atom (() => (...args: InferArgs <T>) => {
     writeRef.current (writable, ...args)
   })

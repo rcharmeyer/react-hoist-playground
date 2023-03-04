@@ -27,43 +27,43 @@ export function useRerender () {
 }
 
 export function useMounted () {
-    const [mounted, setMounted] = useState (false)
-    
-    useEffect (() => {
-        setMounted (true)
-        return () => {
-            setMounted (false)
-        }
-    }, [])
-    
-    return mounted
+  const [mounted, setMounted] = useState (false)
+  
+  useEffect (() => {
+    setMounted (true)
+    return () => {
+      setMounted (false)
+    }
+  }, [])
+  
+  return mounted
 }
 
 export function useAssertConstant (val: any, msg: string) {
-    const mounted = useMounted()
-    
-    useEffect (() => {
-        if (mounted) {
-            console.error (`[useAssertConstant] ${msg}`)
-        }
-    }, [ val ])
+  const mounted = useMounted()
+  
+  useEffect (() => {
+    if (mounted) {
+      console.error (`[useAssertConstant] ${msg}`)
+    }
+  }, [ val ])
 }
 
 export function usePrevious (val: any) {
-    const ref = useRef ()
-    const res = ref.current
-    ref.current = val
-    return res
+  const ref = useRef ()
+  const res = ref.current
+  ref.current = val
+  return res
 }
 
 export function useKeyContext (context: Context <any>) {
-    const id = useContext (context)
-    // const mounted = useMounted ()
-    const prevId = usePrevious (id)
-    
-    if (prevId && prevId !== id) {
-        throw new Error (`[CountStore] changed to ${id} from ${prevId}`)
-    }
-    
-    return id
+  const id = useContext (context)
+  // const mounted = useMounted ()
+  const prevId = usePrevious (id)
+  
+  if (prevId && prevId !== id) {
+    throw new Error (`[CountStore] changed to ${id} from ${prevId}`)
+  }
+  
+  return id
 }
