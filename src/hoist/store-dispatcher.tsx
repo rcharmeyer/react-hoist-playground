@@ -1,108 +1,30 @@
-import { Atom, atom, getDefaultStore } from "jotai"
-import React, { Context, createRef, MutableRefObject } from "react"
+import { Atom, atom } from "jotai"
+import React, { Context, DependencyList } from "react"
 import {
   atomsByMetasymbol,
   getMetasymbolAncestors,
-  getMetasymbolContext, 
-  useMetasymbolContext,
+  getMetasymbolContext,
 } from "./metasymbols"
-import { ReactCurrentDispatcher } from "./dispatcher"
-import { toJotaiReadable } from "./writer"
 import { Func, Func0, Func1, Func2, Runc1, Vunc1 } from "../types"
-import { useStoreAux, useJotaiValue } from "./use-store"
+import { useStoreAux } from "./use-store"
 import { atomWithReducer } from "jotai/utils"
+import { makeStateAtom } from "./jotai"
+import { depsEqual } from "./utils"
+import { createMutableRef, useDebugLabel } from "./react-aux"
 
-type ReactPromise <T> = Promise<T> & {
-    status?: 'pending' | 'fulfilled' | 'rejected'
-    value?: T
-    reason?: unknown
-}
-
-export function readPromise <T> (promise: ReactPromise <T>): T {
-  if (promise.status === 'pending') {
-    throw promise
-  } 
-  else if (promise.status === 'fulfilled') {
-    return promise.value as T
-  } 
-  else if (promise.status === 'rejected') {
-    throw promise.reason
-  }
-  else {
-    promise.status = 'pending'
-    promise.then(
-      (v) => {
-        promise.status = 'fulfilled'
-        promise.value = v
-      },
-      (e) => {
-        promise.status = 'rejected'
-        promise.reason = e
-      }
-    )
-    throw promise
-  }
-}
-
-export const use: typeof readPromise = (promise) => {
-  if (ReactCurrentDispatcher.current.use) {
-    ReactCurrentDispatcher.current.use (promise)
-  }
-  return readPromise (promise)
-}
-
-export function makeStateAtom (initialState: any) {
-  const stateAtom = atom (initialState)
-  const setStateAtom = toJotaiReadable (stateAtom)
-
-  const tupleAtom = atom ((get) => {
-    const state = get (stateAtom)
-    console.log ("[tupleAtom:get]", state)
-    
-    const setState = get (setStateAtom)
-    return [state, setState] as const
-  })
-
-  const setDebugLabel = (debugLabel: string) => {
-    stateAtom.debugLabel = `${debugLabel}.state`
-    setStateAtom.debugLabel = `${debugLabel}.setState`
-    tupleAtom.debugLabel = `${debugLabel}`
-  }
-
-  return [ tupleAtom, setDebugLabel ] as const
-}
-
-function depsEqual (depsA: any, depsB: any) {
-  const lenA = !Array.isArray (depsA) ? -1 : depsA.length
-  const lenB = !Array.isArray (depsA) ? -1 : depsA.length
-  
-  console.assert (lenA === lenB, "[depsEqual] number of deps has changed")
-  
-  if (lenA < -1) return false
-  
-  for (let i = 0; i < lenA; i++) {
-      if (depsA[i] !== depsB[i]) return false
-  }
-  return true
-}
-
-function createMutableRef <T> (initialValue: T) {
-  const ref = createRef () as MutableRefObject <T>
-  ref.current = initialValue
-  return ref
-}
-
-export function useDebugLabel (label: string) {
-  if (ReactCurrentDispatcher.current.useJotaiValue) {
-    return ReactCurrentDispatcher.current.useDebugLabel (label)
-  }
-}
+const NOT_IMPLEMENTED_HOOKS = [
+  "useDeferredValue",
+  "useId",
+  "useImperativeHandle",
+  "useInsertionEffect",
+  "useLayoutEffect",
+  "useSyncExternalStore",
+  "useTransition",
+]
 
 export type Dispatcher = {
   useDebugLabel: typeof useDebugLabel,
   useStore: typeof useStoreAux,
-  useJotaiValue: typeof useJotaiValue,
-  useMetasymbolContext: typeof useMetasymbolContext,
   
   useCallback: typeof React.useCallback <any>,
   useContext: typeof React.useContext <any>,
@@ -121,70 +43,35 @@ type Hook <T extends Func = Func> = {
 export type DispatcherParams = {
   mounted: boolean,
   index: number,
-  hooks: Hook[],
+  hooks: Func[],
   readAtom: Runc1 <Atom <any>>,
   addContext: Vunc1 <Context <any>>,
   metasymbol: symbol,
   setLabel: Vunc1 <string>,
+  labelCallbacks: Set <Vunc1 <string>>,
 }
 
-type HookMount <T extends Func> = Func <Hook <T>, Parameters <T>>
-
-export function withDispatcher <T> (dispatcher: Dispatcher, func: () => T): T {
-  const prev = ReactCurrentDispatcher.current
-  try {
-    ReactCurrentDispatcher.current = dispatcher
-    ReactCurrentDispatcher.current.readContext = prev.readContext
-    const res = func()
-    console.assert (!!res, "withDispatcher should be returning a defined value")
-    console.assert (! (res instanceof Promise), "withDispatcher can't return promise")
-    return res
-  }
-  finally {
-    ReactCurrentDispatcher.current = prev
-  }
-}
-
-export async function withDispatcherAsync <T> (dispatcher: Dispatcher, func: () => T): Promise <T> {
-  let promise: Promise<any>|null = Promise.resolve ()
-  let count = 0
-  
-  while (promise) {
-    console.log (`promises count = ${count++}`)
-    
-    let prev
-    try {
-      await promise
-      promise = null
-      
-      prev = ReactCurrentDispatcher.current
-      ReactCurrentDispatcher.current = dispatcher
-      return func()
-    }
-    catch (thrown) {
-      if (thrown instanceof Promise) promise = thrown
-      throw thrown
-    }
-    finally {
-      if (prev) ReactCurrentDispatcher.current = prev
-    }
-  }
-  
-  console.assert (false, "[withDispatcherAsync] should have returned")
-  return Promise.reject ("withDispatcherAsync internal error")
-}
+type HookMount <T extends Func> = Func <T, Parameters <T>>
 
 export function makeStoreDispatcher (prefs: DispatcherParams) {
   const d: Dispatcher = {} as any
+
+  for (const hook of NOT_IMPLEMENTED_HOOKS) {
+    d[hook] = () => {
+      throw new Error (`${hook} has not been implemented`)
+    }
+  }
   
   d.useDebugLabel = (label: string) => {
-    prefs.index += 1
+    // TODO: increase index?
     if (! prefs.mounted) prefs.setLabel (label)
   }
   d.useStore = (store) => {
+    // TODO: increase index?
+
     console.group ("useStore")
     try {
-      const res = useStoreAux (store)
+      const res = prefs.readAtom (store (prefs.metasymbol))
       console.assert (! (res instanceof Promise), "useStoreAux can't return a promise")
       
       if (! prefs.mounted) {
@@ -198,17 +85,6 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       console.groupEnd ()
     }
   }
-  d.useJotaiValue = (argAtom: Atom <any>) => {
-    prefs.index += 1
-    const res = prefs.readAtom (argAtom)
-    console.assert (! (res instanceof Promise), "useJotaiValue can't return a promise")
-
-    return res
-  }
-  d.useMetasymbolContext = () => {
-    prefs.index += 1
-    return prefs.metasymbol
-  }
     
   function subdispatcher <T extends Func> (mount: HookMount <T>) {
     return (...args: Parameters <T>) => {
@@ -216,63 +92,48 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       const i = prefs.index
       
       if (!prefs.mounted) prefs.hooks[i] = mount (...args)
-      const hook = prefs.hooks[i].run as T
+      const hook = prefs.hooks[i] as T
       
       if (typeof hook === "function") {
-          return hook (...args)
+        return hook (...args)
       }
       console.error ("hook should be a function")
     }
   }
     
   d.useContext = subdispatcher <typeof d.useContext> ((context) => {
-    console.assert (context.hoistable, "[useContext] context.hoistable")
-    
-    if (!context.hoistable) {
-      // TODO: For compatibility, readContext doesn't work
-      // return d.readContext (context)
-    }
-    
     // if (initialized) console.assert (contexts.has (context))
     prefs.addContext (context)
-    
-    const metasymbols = getMetasymbolAncestors (prefs.metasymbol)
-    console.log ("metasymbol ancestor amount =", metasymbols.length)
-            
-    const metasymbol = metasymbols
+        
+    const metasymbol = getMetasymbolAncestors (prefs.metasymbol)
       .find (s => context === getMetasymbolContext (s))
     
     // if not in the Context
-    // TODO: default value
     if (!metasymbol) {
-      console.log (`No found metasymbol for ${context.displayName}`)
-      return {
-        run: () => {},
-        setDebugLabel: () => {},
-      }
+      console.log (`No found metasymbol for ${context.displayName ?? ""}`)
+      // TODO: default value
+      return () => {}
     }
     
     const valueAtom = atomsByMetasymbol (metasymbol)
     const hookAtom = atom ((get) => get (valueAtom))
-        
-    return {
-      run: () => prefs.readAtom (hookAtom),
-      setDebugLabel: (label) => {
-        hookAtom.debugLabel = `${label}.useContext`
-      }
-    }
+
+    prefs.labelCallbacks.add ((label) => {
+      hookAtom.debugLabel = `${label}.useContext`
+    })
+
+    return () => prefs.readAtom (hookAtom)
   })
-        
+  
   d.useReducer = subdispatcher <typeof d.useReducer> ((reducer, initialState, init) => {
     if (init) initialState = init (initialState)
     const theAtom = atomWithReducer (initialState, reducer)
+
+    prefs.labelCallbacks.add ((label: string) => {
+      theAtom.debugLabel = `${label}.useReducer`
+    })
     
-    return {
-      run: () => prefs.readAtom (theAtom),
-      setDebugLabel: (label: string) => {
-        theAtom.debugLabel = `${label}.useReducer`
-      }
-    }
+    return () => prefs.readAtom (theAtom)
   })
     
   d.useState = subdispatcher <typeof d.useState> ((initialState?: any) => {
@@ -281,26 +142,22 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
     }
             
     const [ hookAtom, setDebugLabel ] = makeStateAtom (initialState)
-    return {
-      run: () => prefs.readAtom (hookAtom),
-      setDebugLabel: (label: string) => {
-        setDebugLabel (`${label}.useState`)
-      },
-    }
+
+    prefs.labelCallbacks.add ((label: string) => {
+      setDebugLabel (`${label}.useState`)
+    })
+
+    return () => prefs.readAtom (hookAtom)
   })
     
   d.useRef = subdispatcher <typeof d.useRef> ((initialValue?: any) => {
     const ref = createMutableRef (initialValue)
-    return {
-      run: () => ref,
-      // TODO: support ref debug label
-      setDebugLabel: () => {},
-    }
+    return () => ref
   })
     
   // Things with Deps
   
-  type DepHook <R = any, T = any> = Func2 <R, T, any[]>
+  type DepHook <R = any, T = any> = Func2 <R, T, DependencyList|undefined>
       
   function subdispatcherWithDeps <D extends DepHook, V = ReturnType <D>> (
     result: Func1 <ReturnType <D>, V>
@@ -309,15 +166,11 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       const prevDepsRef = createMutableRef (initDeps)
       const prevValueRef = createMutableRef (init())
       
-      return {
-        run: (get, deps) => {
-          if (depsEqual (deps, prevDepsRef.current)) {
-            return result (prevValueRef.current)
-          }
-          return result (get())
-        },
-        // TODO: support memo debug label
-        setDebugLabel: () => {},
+      return (get, deps) => {
+        if (depsEqual (deps, prevDepsRef.current)) {
+          return result (prevValueRef.current)
+        }
+        return result (get())
       }
     })
   }
@@ -334,40 +187,6 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       theAtom.onMount = effect
       return theAtom
     }, deps)
-  }
-    
-  // TODO: Implement other hooks
-  
-  d.useLayoutEffect = () => {
-    throw new Error ("useLayoutEffect has not been implemented")
-  }
-  
-  d.useInsertionEffect = () => {
-    throw new Error ("useInsertionEffect has not been implemented")
-  }
-  
-  d.useSyncExternalStore = () => {
-    throw new Error ("useSyncExternalStore has not been implemented")
-  }
-  
-  d.useTransition = () => {
-    throw new Error ("useTransition has not been implemented")
-  }
-  
-  d.useId = () => {
-    throw new Error ("useId has not been implemented")
-  }
-  
-  d.useDebugValue = () => {
-    console.error ("useDebugValue has not been implemented")
-  }
-  
-  d.useDeferredValue = () => {
-    throw new Error ("useDeferredValue has not been implemented")
-  }
-  
-  d.useImperativeHandle = () => {
-    throw new Error ("useImperativeHandle has not been implemented")
   }
   
   return d

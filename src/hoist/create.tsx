@@ -1,28 +1,16 @@
 import { Atom, atom } from "jotai"
 import { Context } from "react"
 import {
-    getMetasymbolAncestors,
-    getMetasymbolContext, 
-    getMetasymbolName,
-    ROOT_METASYMBOL,
+  getMetasymbolAncestors,
+  getMetasymbolContext, 
+  getMetasymbolName,
+  ROOT_METASYMBOL,
 } from "./metasymbols"
-import { DispatcherParams, makeStateAtom, makeStoreDispatcher, readPromise, withDispatcher } from "./store-dispatcher"
+import { DispatcherParams, makeStoreDispatcher } from "./store-dispatcher"
 import { Func, Vunc0 } from "../types"
-
-function makeReloadAtom (debugLabel: string) {
-  const [ reloadAtom, setDebugLabel ] = makeStateAtom (Symbol())
-              
-  const res = atom ((get) => {
-    const [ , setSymbol ] = get (reloadAtom)
-    return () => setSymbol (Symbol())
-  })
-  
-  const label = `reload(${debugLabel})`
-  setDebugLabel (label)
-  res.debugLabel = label
-  
-  return res
-}
+import { makeReloadAtom } from "./jotai"
+import { usingDispatcher } from "./dispatcher"
+import { readPromise } from "./promise"
 
 function family <T> (init: (key: symbol) => Atom <T>) {
   const map = new Map <symbol, Atom<T>>()
@@ -89,7 +77,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     
   /*
   let selfFamily: ReturnType <typeof family <T>> & {
-      contexts: Set <Context<any>>
+    contexts: Set <Context<any>>
   }
   */
   let selfFamily: any
@@ -112,7 +100,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     selfFamily.contexts = new Set ()
     return selfFamily.contexts
   })
-      
+
   function getScope (metasymbol: symbol): symbol {
     console.assert (initialized, "[getScope] initialized")
     
@@ -130,29 +118,30 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     let createdAtom: Atom <any> = null as any
   
     function writeLabel () {
-        console.group ("[writeLabel]")
-        const trueScope = getScope (metasymbol)
-        const scopeName = getMetasymbolName (trueScope)
-        const debugLabel = `${labelRef.current}@${scopeName}`
-        
-        createdAtom.debugLabel = debugLabel
-        
-        const len = prefs.hooks.length
-        for (let i = 0; i < len; i++) {
-            const hook = prefs.hooks[i]
-            hook?.setDebugLabel?.(`${debugLabel}[${i}]`)
-        }
-        console.groupEnd ()
+      console.group ("[writeLabel]")
+      const trueScope = getScope (metasymbol)
+      const scopeName = getMetasymbolName (trueScope)
+      const debugLabel = `${labelRef.current}@${scopeName}`
+      
+      createdAtom.debugLabel = debugLabel
+      
+      const len = prefs.hooks.length
+      for (let i = 0; i < len; i++) {
+        const hook = prefs.hooks[i]
+        hook?.setDebugLabel?.(`${debugLabel}[${i}]`)
+      }
+      console.groupEnd ()
     }
     
     const prefs: DispatcherParams = {
-        mounted: false,
-        index: -1,
-        hooks: [],
-        readAtom: null as any,
-        addContext: (c: Context <any>) => contextsRef.current.add (c),
-        metasymbol,
-        setLabel,
+      mounted: false,
+      index: -1,
+      hooks: [],
+      readAtom: null as any,
+      addContext: (c: Context <any>) => contextsRef.current.add (c),
+      metasymbol,
+      setLabel,
+      labelCallbacks,
     }
     
     const dispatcher = makeStoreDispatcher (prefs)
@@ -172,7 +161,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
         selfFamily?.debug?.()
         console.log ("name =", getMetasymbolName (metasymbol))
         
-        const res = withDispatcher (dispatcher, hook)                
+        const res = usingDispatcher (dispatcher, hook)                
         console.assert (! (res instanceof Promise), "! (res instanceof Promise)")
         
         // set debug label

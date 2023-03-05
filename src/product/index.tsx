@@ -1,2 +1,2 @@
-export { ProductCard } from "./card"
 export { ProductIdContext } from "./context"
+export { ProductPage } from "./page"
