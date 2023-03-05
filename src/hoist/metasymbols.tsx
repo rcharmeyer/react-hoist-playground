@@ -1,6 +1,6 @@
-import { Atom, atom, useSetAtom } from "jotai"
+import { Atom, atom, useSetAtom, WritableAtom } from "jotai"
 import { atomFamily } from "jotai/utils"
-import { Context, createContext, memo, PropsWithChildren, Suspense, useContext, useEffect, useRef } from "react"
+import { ComponentType, Context, createContext, memo, PropsWithChildren, Suspense, useContext, useEffect, useRef } from "react"
 
 import { memoize } from "lodash-es"
 import { makeDispatchable } from "./dispatcher"
@@ -22,8 +22,8 @@ makeContextMemoized (RootContext)
 
 export function MetasymbolRoot ({ children }: PropsWithChildren) {
   return (
-    <MetasymbolContext.Provider value={ROOT_METASYMBOL}>
-      <RootContext.Provider value={undefined}>
+    <MetasymbolContext.Provider __ignoreJsxMiddleware value={ROOT_METASYMBOL}>
+      <RootContext.Provider __ignoreJsxMiddleware value={undefined}>
         {children}
       </RootContext.Provider>
     </MetasymbolContext.Provider>
@@ -81,7 +81,7 @@ type ReadRef = { current: () => unknown }
 // TODO: Handle initial render edge cases
 export const atomsByMetasymbol = atomFamily ((metasymbol: symbol) => {
   console.group ("[atomsByMetasymbol]")
-  const theAtom: Atom <any> = atom (atomsByMetasymbol.initialValue)
+  const theAtom: WritableAtom <any, any, any> = atom (atomsByMetasymbol.initialValue)
   
   const name = getMetasymbolName (metasymbol)
   console.log ("name:", name)
@@ -94,14 +94,28 @@ export const atomsByMetasymbol = atomFamily ((metasymbol: symbol) => {
   return theAtom
 })
 
-export const makeContextHoistable = memoize ((context: Context <any>) => {
-  console.assert (!!context.displayName, "context.displayName")
-  console.assert (!context.hoistable, "context is already hoistable")
-  context.hoistable = true
+function useMetasymbolAtomSync (metasymbol: symbol, value: any) {
+  const atomRef = useRef <WritableAtom <any, any, any>> (undefined as any)
+  if (!atomRef.current) {
+    atomsByMetasymbol.initialValue = value
+    atomRef.current = atomsByMetasymbol (metasymbol)
+    atomsByMetasymbol.initialValue = undefined
+  }
 
-  const { Provider } = context
-  
-  context.Provider = ({ value, children }) => {
+  const setValue = useSetAtom (atomRef.current)
+
+  useEffect (() => {
+    setValue (value)
+  }, [ value ])
+}
+
+export const withHoistable = memoize (<T extends Context <any>["Provider"]>(provider: T) => {
+  console.log ("[withHoistable]")
+
+  const context = provider._context
+  const Provider = provider // memo (provider)
+
+  const res: T = ({ value, children }) => {
     const readRef = useRef <ReadRef["current"]> (undefined as any)
     readRef.current = () => value
 
@@ -122,13 +136,7 @@ export const makeContextHoistable = memoize ((context: Context <any>) => {
       MAPS.getMetasymbolName.set (symbolRef.current, `${name}`)
     }
 
-    atomsByMetasymbol.initialValue = value
-    const setValue = useSetAtom (atomsByMetasymbol (symbolRef.current))
-    atomsByMetasymbol.initialValue = undefined
-
-    useEffect (() => {
-      setValue (value)
-    }, [ value ])
+    useMetasymbolAtomSync (symbolRef.current, value)
 
     useEffect (() => () => {
       console.log ("Removing metasymbols on unmount")
@@ -140,7 +148,7 @@ export const makeContextHoistable = memoize ((context: Context <any>) => {
     // TODO: Make contexts suspendable without breaking hoist
     return (
       <MetasymbolContext.Provider value={symbolRef.current}>
-        <Provider value={value}>
+        <Provider __ignoreJsxMiddleware value={value}>
           <Suspense>
             {children}
           </Suspense>
@@ -148,6 +156,7 @@ export const makeContextHoistable = memoize ((context: Context <any>) => {
       </MetasymbolContext.Provider>
     )
   }
-  
-  makeContextMemoized (context)
+
+  res.displayName = `withHoistable(${context.displayName})`
+  return res
 })

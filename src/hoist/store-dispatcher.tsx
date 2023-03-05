@@ -12,6 +12,16 @@ import { makeStateAtom } from "./jotai"
 import { depsEqual } from "./utils"
 import { createMutableRef, useDebugLabel } from "./react-aux"
 
+const NOT_IMPLEMENTED_HOOKS = [
+  "useDeferredValue",
+  "useId",
+  "useImperativeHandle",
+  "useInsertionEffect",
+  "useLayoutEffect",
+  "useSyncExternalStore",
+  "useTransition",
+]
+
 export type Dispatcher = {
   useDebugLabel: typeof useDebugLabel,
   useStore: typeof useStoreAux,
@@ -33,17 +43,24 @@ type Hook <T extends Func = Func> = {
 export type DispatcherParams = {
   mounted: boolean,
   index: number,
-  hooks: Hook[],
+  hooks: Func[],
   readAtom: Runc1 <Atom <any>>,
   addContext: Vunc1 <Context <any>>,
   metasymbol: symbol,
   setLabel: Vunc1 <string>,
+  labelCallbacks: Set <Vunc1 <string>>,
 }
 
-type HookMount <T extends Func> = Func <Hook <T>, Parameters <T>>
+type HookMount <T extends Func> = Func <T, Parameters <T>>
 
 export function makeStoreDispatcher (prefs: DispatcherParams) {
   const d: Dispatcher = {} as any
+
+  for (const hook of NOT_IMPLEMENTED_HOOKS) {
+    d[hook] = () => {
+      throw new Error (`${hook} has not been implemented`)
+    }
+  }
   
   d.useDebugLabel = (label: string) => {
     // TODO: increase index?
@@ -75,63 +92,48 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       const i = prefs.index
       
       if (!prefs.mounted) prefs.hooks[i] = mount (...args)
-      const hook = prefs.hooks[i].run as T
+      const hook = prefs.hooks[i] as T
       
       if (typeof hook === "function") {
-          return hook (...args)
+        return hook (...args)
       }
       console.error ("hook should be a function")
     }
   }
     
   d.useContext = subdispatcher <typeof d.useContext> ((context) => {
-    console.assert (context.hoistable, "[useContext] context.hoistable")
-    
-    if (!context.hoistable) {
-      // TODO: For compatibility, readContext doesn't work
-      // return d.readContext (context)
-    }
-    
     // if (initialized) console.assert (contexts.has (context))
     prefs.addContext (context)
-    
-    const metasymbols = getMetasymbolAncestors (prefs.metasymbol)
-    console.log ("metasymbol ancestor amount =", metasymbols.length)
-            
-    const metasymbol = metasymbols
+        
+    const metasymbol = getMetasymbolAncestors (prefs.metasymbol)
       .find (s => context === getMetasymbolContext (s))
     
     // if not in the Context
-    // TODO: default value
     if (!metasymbol) {
-      console.log (`No found metasymbol for ${context.displayName}`)
-      return {
-        run: () => {},
-        setDebugLabel: () => {},
-      }
+      console.log (`No found metasymbol for ${context.displayName ?? ""}`)
+      // TODO: default value
+      return () => {}
     }
     
     const valueAtom = atomsByMetasymbol (metasymbol)
     const hookAtom = atom ((get) => get (valueAtom))
-        
-    return {
-      run: () => prefs.readAtom (hookAtom),
-      setDebugLabel: (label) => {
-        hookAtom.debugLabel = `${label}.useContext`
-      }
-    }
+
+    prefs.labelCallbacks.add ((label) => {
+      hookAtom.debugLabel = `${label}.useContext`
+    })
+
+    return () => prefs.readAtom (hookAtom)
   })
-        
+  
   d.useReducer = subdispatcher <typeof d.useReducer> ((reducer, initialState, init) => {
     if (init) initialState = init (initialState)
     const theAtom = atomWithReducer (initialState, reducer)
+
+    prefs.labelCallbacks.add ((label: string) => {
+      theAtom.debugLabel = `${label}.useReducer`
+    })
     
-    return {
-      run: () => prefs.readAtom (theAtom),
-      setDebugLabel: (label: string) => {
-        theAtom.debugLabel = `${label}.useReducer`
-      }
-    }
+    return () => prefs.readAtom (theAtom)
   })
     
   d.useState = subdispatcher <typeof d.useState> ((initialState?: any) => {
@@ -140,21 +142,17 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
     }
             
     const [ hookAtom, setDebugLabel ] = makeStateAtom (initialState)
-    return {
-      run: () => prefs.readAtom (hookAtom),
-      setDebugLabel: (label: string) => {
-        setDebugLabel (`${label}.useState`)
-      },
-    }
+
+    prefs.labelCallbacks.add ((label: string) => {
+      setDebugLabel (`${label}.useState`)
+    })
+
+    return () => prefs.readAtom (hookAtom)
   })
     
   d.useRef = subdispatcher <typeof d.useRef> ((initialValue?: any) => {
     const ref = createMutableRef (initialValue)
-    return {
-      run: () => ref,
-      // TODO: support ref debug label
-      setDebugLabel: () => {},
-    }
+    return () => ref
   })
     
   // Things with Deps
@@ -168,15 +166,11 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       const prevDepsRef = createMutableRef (initDeps)
       const prevValueRef = createMutableRef (init())
       
-      return {
-        run: (get, deps) => {
-          if (depsEqual (deps, prevDepsRef.current)) {
-            return result (prevValueRef.current)
-          }
-          return result (get())
-        },
-        // TODO: support memo debug label
-        setDebugLabel: () => {},
+      return (get, deps) => {
+        if (depsEqual (deps, prevDepsRef.current)) {
+          return result (prevValueRef.current)
+        }
+        return result (get())
       }
     })
   }
@@ -193,40 +187,6 @@ export function makeStoreDispatcher (prefs: DispatcherParams) {
       theAtom.onMount = effect
       return theAtom
     }, deps)
-  }
-
-  // TODO: Implement other hooks
-  
-  d.useLayoutEffect = () => {
-    throw new Error ("useLayoutEffect has not been implemented")
-  }
-  
-  d.useInsertionEffect = () => {
-    throw new Error ("useInsertionEffect has not been implemented")
-  }
-  
-  d.useSyncExternalStore = () => {
-    throw new Error ("useSyncExternalStore has not been implemented")
-  }
-  
-  d.useTransition = () => {
-    throw new Error ("useTransition has not been implemented")
-  }
-  
-  d.useId = () => {
-    throw new Error ("useId has not been implemented")
-  }
-  
-  d.useDebugValue = () => {
-    console.error ("useDebugValue has not been implemented")
-  }
-  
-  d.useDeferredValue = () => {
-    throw new Error ("useDeferredValue has not been implemented")
-  }
-  
-  d.useImperativeHandle = () => {
-    throw new Error ("useImperativeHandle has not been implemented")
   }
   
   return d

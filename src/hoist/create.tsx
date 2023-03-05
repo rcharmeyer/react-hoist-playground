@@ -77,7 +77,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     
   /*
   let selfFamily: ReturnType <typeof family <T>> & {
-      contexts: Set <Context<any>>
+    contexts: Set <Context<any>>
   }
   */
   let selfFamily: any
@@ -100,7 +100,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
     selfFamily.contexts = new Set ()
     return selfFamily.contexts
   })
-      
+
   function getScope (metasymbol: symbol): symbol {
     console.assert (initialized, "[getScope] initialized")
     
@@ -141,6 +141,7 @@ export function createStore <T extends Promise <any>> (hook: () => T): any/*Stor
       addContext: (c: Context <any>) => contextsRef.current.add (c),
       metasymbol,
       setLabel,
+      labelCallbacks,
     }
     
     const dispatcher = makeStoreDispatcher (prefs)
