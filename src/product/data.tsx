@@ -2,7 +2,7 @@ import { useContext, useMemo } from "react"
 import { fetchProductById, Skudata } from "../data/product"
 import { hoist, useDebugLabel } from "../hoist"
 import { makeAsync } from "../hooks"
-import { ProductIdContext } from "./context"
+import { ProductIdContext, SkudataIdContext } from "./context"
 
 const useProductDataById = makeAsync (fetchProductById)
 
@@ -36,4 +36,11 @@ export const useSkudataBy = hoist ((sku: string) => {
     const res = skudatas.find (s => s.id === sku)
     return res as Skudata
   }, [ sku ])
+})
+
+export const useSkudata = hoist (() => {
+  const sku = useContext (SkudataIdContext)
+  useDebugLabel (`useSkudata`)
+  
+  return useSkudataBy (sku)
 })

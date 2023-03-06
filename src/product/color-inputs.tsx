@@ -1,13 +1,10 @@
-import { useProduct, useSkudataBy } from "./data"
+import { SkudataIdContext } from "./context"
+import { useProduct, useSkudata } from "./data"
 import { useSkuSelect } from "./selected-sku"
 
-function ColorInput (props: {
-  sku: string,
-}) {
-  const { sku } = props
-  
-  const { swatch } = useSkudataBy (sku)
-  const { isSelected, onSkuSelect } = useSkuSelect (sku)
+function ColorInput () {
+  const { swatch } = useSkudata ()
+  const { isSelected, onSkuSelect } = useSkuSelect ()
   
   let className = "h-6 w-6 object-cover rounded-full ring-offset-2 cursor-pointer"
   
@@ -21,11 +18,16 @@ export function ColorInputs (props: {
   amount?: number,
 }) {
   const { skudatas } = useProduct()
-  
-  const content = skudatas
+
+  const skus = skudatas
     .map (s => s.id)
     .slice (0, (props.amount ?? skudatas.length))
-    .map (sku => <ColorInput key={sku} sku={sku} />)
+  
+  const content = skus.map (sku => (
+    <SkudataIdContext.Provider key={sku} value={sku}>
+      <ColorInput />
+    </SkudataIdContext.Provider>
+  ))
   
   return <div className="flex flex-row space-x-2">{content}</div>
 }

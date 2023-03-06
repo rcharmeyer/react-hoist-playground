@@ -1,12 +1,12 @@
 import { useContext, useMemo, useState } from "react"
 import { hoist, useDebugLabel } from "../hoist"
 import { useEvent } from "../hooks"
-import { ProductIdContext } from "./context"
+import { ProductIdContext, SkudataIdContext } from "./context"
 import { useProduct } from "./data"
 
 const useSelectedSkuState = hoist (() => {
   useContext (ProductIdContext)
-  useDebugLabel (`useSelectedSkuState`)
+  useDebugLabel ("useSelectedSkuState")
   
   const [ selectedSku, setSelectedSku ] = useState ("")
   return { selectedSku, setSelectedSku }
@@ -30,7 +30,9 @@ export const useActiveSku = hoist (() => {
   return res
 })
 
-export const useSkuSelect = hoist ((sku: string) => {
+export const useSkuSelect = hoist (() => {
+  const sku = useContext (SkudataIdContext)
+
   useDebugLabel ("useSkuSelect")
   const { selectedSku, setSelectedSku } = useSelectedSkuState ()
   const isSelected = sku === selectedSku
@@ -39,5 +41,8 @@ export const useSkuSelect = hoist ((sku: string) => {
     setSelectedSku (sku)
   })
   
-  return { isSelected, onSkuSelect }
+  return useMemo (() => ({ 
+    isSelected, 
+    onSkuSelect
+  }), [ isSelected, onSkuSelect ])
 })
