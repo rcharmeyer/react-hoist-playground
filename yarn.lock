@@ -612,6 +612,11 @@ jotai-devtools@^0.2.0:
   dependencies:
     "@redux-devtools/extension" "^3.2.3"
 
+jotai-molecules@^1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/jotai-molecules/-/jotai-molecules-1.1.0.tgz#00f4ed4156cf4a1d21e95fd1f3f8402ace744b13"
+  integrity sha512-d/Z1zRqKXIdPC2PdrTJIIvGT15DvibRlSvtPEWHMHaEVhd0iYO+yGlswm+Hcz7z4ptxb9idNoEl/38dVOVo1Vw==
+
 jotai@^2.0.0:
   version "2.0.2"
   resolved "https://registry.yarnpkg.com/jotai/-/jotai-2.0.2.tgz#52728e91de61742263e40fda79a367ab4649506c"
