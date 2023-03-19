@@ -89,7 +89,7 @@ export function Tip (props: { root?: boolean }) {
     <div className="space-y-4">
       {!!props.root && <h6 className="text text-center mt-2 font-semibold">{title}</h6>}
       <p className="text-sm text-light">{body}</p>
-      <ul className="flex flex-row items-center justify-center">
+      <ul className="flex flex-row items-center justify-around">
         {subtipIds.map ((id) => (
           <li key={id}>
             <Subtip id={id} />
@@ -101,12 +101,20 @@ export function Tip (props: { root?: boolean }) {
   )
 }
 
-export function TipRoot (props: { id: string }) {
+function TipRoot (props: { id: string }) {
   return (
-    <div className="border rounded-lg px-2 pb-2 space-y-4">
+    <div className="border rounded-lg px-2 pb-2 space-y-4 w-72">
       <TipIdContext.Provider value={props.id}>
         <Tip root />
       </TipIdContext.Provider>
     </div>
+  )
+}
+
+export function TipExample () {
+  return (
+    <article className="flex flex-col items-center justify-center">
+      <TipRoot id="1" />
+    </article>
   )
 }

@@ -10,13 +10,15 @@ export function ProductPage () {
 
   return (
     <ProductIdContext.Provider value={getPageProductId()}>
-      <article className="space-y-8 flex flex-col items-center">
-        <MainSection />
-        <ErrorBoundary fallback={recommendationsFallback}>
-          <Suspense>
-            <RecommenderSection />
-          </Suspense>
-        </ErrorBoundary>
+      <article className="flex flex-col items-center">
+        <div className="w-fit space-y-8">
+          <MainSection />
+          <ErrorBoundary fallback={recommendationsFallback}>
+            <Suspense>
+              <RecommenderSection />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
       </article>
     </ProductIdContext.Provider>
   )

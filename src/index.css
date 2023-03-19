@@ -19,10 +19,10 @@
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  padding: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
 }
 
 a {
@@ -37,7 +37,7 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
+  /* place-items: center; */
   min-width: 320px;
   min-height: 100vh;
 }
