@@ -74,7 +74,7 @@ function ExpandedSubtip () {
   if (!selectedTipId) return null
   return (
     <Suspense>
-      <TipIdContext.Provider value={selectedTipId}>
+      <TipIdContext.Provider key={selectedTipId} value={selectedTipId}>
         <Tip />
       </TipIdContext.Provider>
     </Suspense>
