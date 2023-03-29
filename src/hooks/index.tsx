@@ -1,4 +1,6 @@
-import { Context, useCallback, useContext, useEffect, useRef, useState } from "react"
+import { isEqual } from "lodash-es"
+import isEqualShallow from "shallowequal"
+import { Context, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react"
 import { Func } from "../types"
 
 export { makeAsync } from "./use-async"
@@ -66,4 +68,34 @@ export function useKeyContext (context: Context <any>) {
   }
   
   return id
+}
+
+export function useMemoDeep<T> (factory: () => T, deps?: any[]): T {
+  const ref = useRef<T>(undefined as any)
+
+  ref.current = useMemo (() => {
+      const value = factory()
+      return isEqual (ref.current, value) ? ref.current : value
+  }, deps)
+
+  return ref.current
+}
+
+export function useMemoShallow<T> (factory: () => T, deps?: any[]): T {
+  const ref = useRef<T>(undefined as any)
+
+  ref.current = useMemo (() => {
+      const value = factory()
+      return isEqualShallow (ref.current, value) ? ref.current : value
+  }, deps)
+
+  return ref.current
+}
+
+export function useValueShallow <T> (val: T) {
+  return useMemoShallow (() => val, [ val ])
+}
+
+export function useValueDeep <T> (val: T) {
+  return useMemoDeep (() => val, [ val ])
 }

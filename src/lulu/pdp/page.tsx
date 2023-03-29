@@ -1,15 +1,15 @@
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { getPageProductId } from "../data/product"
-import { ProductIdContext } from "./context"
+import { getPageProductId } from "../../data/product"
 import { MainSection } from "./main-section"
+import { ProductProvider } from "../product/product-id"
 import { RecommenderSection } from "./recommendations"
 
 export function ProductPage () {
   const recommendationsFallback = <div>{"{recommendations}"}</div>
 
   return (
-    <ProductIdContext.Provider value={getPageProductId()}>
+    <ProductProvider id={getPageProductId()}>
       <article className="flex flex-col items-center">
         <div className="w-fit space-y-8">
           <MainSection />
@@ -20,6 +20,6 @@ export function ProductPage () {
           </ErrorBoundary>
         </div>
       </article>
-    </ProductIdContext.Provider>
+    </ProductProvider>
   )
 }

@@ -1,19 +1,19 @@
-import { useContext, useMemo, useState } from "react"
-import { hoist, useDebugLabel } from "../hoist"
-import { useEvent } from "../hooks"
-import { ProductIdContext } from "./context"
+import { useDebugValue, useMemo, useState } from "react"
+import { useEvent } from "../../hooks"
+import { ProductScope } from "./product-id"
 import { useProduct } from "./data"
+import { hoist } from "../../scope"
+import { SkudataScope } from "./skudata-id"
 
 const useSelectedSkuState = hoist (() => {
-  useContext (ProductIdContext)
-  useDebugLabel (`useSelectedSkuState`)
+  // useDebugLabel (`useSelectedSkuState`)
   
   const [ selectedSku, setSelectedSku ] = useState ("")
   return { selectedSku, setSelectedSku }
-})
+}, [ ProductScope ])
 
 export const useActiveSku = hoist (() => {
-  useDebugLabel ("useActiveSku")
+  // useDebugLabel ("useActiveSku")
   
   const { skudatas } = useProduct()
   const { selectedSku } = useSelectedSkuState ()
@@ -25,13 +25,14 @@ export const useActiveSku = hoist (() => {
   }, [ skudatas ])
   
   const res = selectedSku || defaultSku
-  // useDebugValue (res)
+  useDebugValue (res)
   console.assert (!!res)
   return res
-})
+}, [ ProductScope ])
 
 export const useSkuSelect = hoist ((sku: string) => {
-  useDebugLabel ("useSkuSelect")
+  // useDebugLabel ("useSkuSelect")
+
   const { selectedSku, setSelectedSku } = useSelectedSkuState ()
   const isSelected = sku === selectedSku
   
@@ -40,4 +41,4 @@ export const useSkuSelect = hoist ((sku: string) => {
   })
   
   return { isSelected, onSkuSelect }
-})
+}, [ ProductScope, SkudataScope ])

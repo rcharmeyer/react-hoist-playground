@@ -1,5 +1,5 @@
 import { Fanc } from "../types";
-import { readPromise } from "../hoist";
+import { readPromise } from "./promise";
 import { memoize } from "lodash-es";
 
 export function makeAsync <T extends Fanc> (func: T) {

@@ -3,7 +3,7 @@ import { useProduct } from "./data"
 export function ProductLabel (props: {
   small?: boolean,
   className?: string,
-}) {  
+}) {
   const { id, name, price } = useProduct ()
   const href = `/product/${id}`
 
