@@ -6,7 +6,7 @@ Welcome! This is a playground for a proposed React API called `hoist`. Here are 
 
 [CodeSandbox](https://codesandbox.io/p/github/rcharmeyer/react-hoist-playground/main)
 
-[View RFC](https://github.com/reactjs/rfcs/pull/241)
+[View RFC](https://github.com/reactjs/rfcs/pull/241) (outdated)
 
 ## What is hoisting?
 
@@ -24,29 +24,6 @@ Keep in mind, there are going to be some issues, bugs, and missing features. Ple
 
 I hope you'll find `hoist` as promising as I do! If you like what you see please consider supporting the RFC by leaving a comment; that will help get the attention of the Core Team.
 
-## Caveats
+## Has the API changed?
 
-- Devtools doesn't work for components that use a hoisted hook.
-- Some components are being wrapped `React.memo` automatically.
-- `Context.Provider` includes a Suspense boundary to avoid a bug.
-- `makeAsync` is a utility for creating hooks for async functions.
-- There is a `useEvent` hook but it's not the same as React's implementation.
-
-## Supported APIs
-
-- [x] Suspense
-- [x] Error Boundaries
-- [x] `useMemo`
-- [x] `useCallback`
-- [x] `useContext`
-- [x] `useState`
-- [x] `useReducer`
-- [x] `useRef`
-- [x] `useEffect`
-- [] `useLayoutEffect`
-- [] `useImperativeHandle`
-- [] `useTransition`
-- [] `useDeferredValue`
-- [] `useId`
-- [] `useMutableSource`
-- [] `useSyncExternalStore`
+Yes! Since the RFC I have revised the API, I'll update the RFC soon but it may no longer be necessary to integrate this into React. It seems a third-party library may be viable after all.

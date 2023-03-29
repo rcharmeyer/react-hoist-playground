@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react"
-import { useValueShallow } from "../hooks"
-import { createScope, createStore, useStore } from "../scope"
+import { useValueShallow } from "../lib/hooks"
+import { createScope, createStore, useStore } from "../lib/scope"
 
 const CounterScope = createScope ()
 

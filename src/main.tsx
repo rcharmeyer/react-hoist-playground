@@ -1,5 +1,3 @@
-// import "./runtime";
-
 import ReactDOM from "react-dom/client";
 import { App } from "./app-root";
 import "./index.css";

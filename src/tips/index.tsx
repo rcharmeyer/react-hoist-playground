@@ -1,6 +1,6 @@
 import { createContext, PropsWithChildren, Suspense, useContext, useState } from "react";
-import { makeAsync } from "../hooks";
-import { createScope, createStore, useStore } from "../scope";
+import { makeAsync } from "../lib/hooks";
+import { createScope, createStore, useStore } from "../lib/scope";
 
 type TipData = {
   title: string,

@@ -1,8 +1,8 @@
 import { useDebugValue, useMemo, useState } from "react"
-import { useEvent } from "../../hooks"
+import { useEvent } from "../../lib/hooks"
 import { ProductScope } from "./product-id"
 import { useProduct } from "./data"
-import { hoist } from "../../scope"
+import { hoist } from "../../lib/scope"
 import { SkudataScope } from "./skudata-id"
 
 const useSelectedSkuState = hoist (() => {
