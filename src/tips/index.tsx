@@ -1,6 +1,6 @@
-import { createContext, Suspense, useContext, useState } from "react";
-import { hoist } from "../hoist";
+import { createContext, PropsWithChildren, Suspense, useContext, useState } from "react";
 import { makeAsync } from "../hooks";
+import { createScope, createStore, useStore } from "../scope";
 
 type TipData = {
   title: string,
@@ -42,18 +42,30 @@ async function fetchTipData (id: string): Promise <TipData> {
 }
 
 const TipIdContext = createContext ("")
+const TipScope = createScope ()
+const MiscScope = createScope ()
+
+function TipProvider (props: PropsWithChildren <{ id: string }>) {
+  return (
+    <TipIdContext.Provider value={props.id}>
+      <TipScope key={props.id}>
+        {props.children}
+      </TipScope>
+    </TipIdContext.Provider>
+  )
+}
 
 const useTipData = makeAsync (fetchTipData)
 
-const useSelectedTipState = hoist (() => {
+const selectedTipStore = createStore (() => {
   useContext (TipIdContext)
   const [ selectedTipId, setSelectedTipId ] = useState ("")
   return { selectedTipId, setSelectedTipId }
-})
+}, [ TipScope ])
 
-function Subtip (props: { id: string}) {
+function Subtip (props: { id: string }) {
   const { title } = useTipData (props.id)
-  const { selectedTipId, setSelectedTipId } = useSelectedTipState ()
+  const { selectedTipId, setSelectedTipId } = useStore (selectedTipStore)
   const isSelected = props.id === selectedTipId
 
   const onClick = () => setSelectedTipId (props.id)
@@ -69,14 +81,14 @@ function Subtip (props: { id: string}) {
 }
 
 function ExpandedSubtip () {
-  const { selectedTipId } = useSelectedTipState ()
+  const { selectedTipId } = useStore (selectedTipStore)
 
   if (!selectedTipId) return null
   return (
     <Suspense>
-      <TipIdContext.Provider value={selectedTipId}>
+      <TipProvider id={selectedTipId}>
         <Tip />
-      </TipIdContext.Provider>
+      </TipProvider>
     </Suspense>
   )
 }
@@ -104,14 +116,14 @@ export function Tip (props: { root?: boolean }) {
 function TipRoot (props: { id: string }) {
   return (
     <div className="border rounded-lg px-2 pb-2 space-y-4 w-72">
-      <TipIdContext.Provider value={props.id}>
+      <TipProvider id={props.id}>
         <Tip root />
-      </TipIdContext.Provider>
+      </TipProvider>
     </div>
   )
 }
 
-export function TipExample () {
+export default function TipExample () {
   return (
     <article className="flex flex-col items-center justify-center">
       <TipRoot id="1" />
