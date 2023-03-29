@@ -8,7 +8,16 @@ type TipData = {
   subtipIds: string[],
 }
 
+const timeout = (ms: number) => new Promise (resolve => setTimeout (resolve, ms))
+
+async function fetchTipTitle (id: string): Promise <string> {
+  await timeout (1000)
+  return `Tip ${id}`
+}
+
 async function fetchTipData (id: string): Promise <TipData> {
+  await timeout (1000)
+
   if (id === "1") {
     return {
       title: "Tip 1",
@@ -43,7 +52,6 @@ async function fetchTipData (id: string): Promise <TipData> {
 
 const TipIdContext = createContext ("")
 const TipScope = createScope ()
-const MiscScope = createScope ()
 
 function TipProvider (props: PropsWithChildren <{ id: string }>) {
   return (
@@ -55,6 +63,7 @@ function TipProvider (props: PropsWithChildren <{ id: string }>) {
   )
 }
 
+const useTipTitle = makeAsync (fetchTipTitle)
 const useTipData = makeAsync (fetchTipData)
 
 const selectedTipStore = createStore (() => {
@@ -64,7 +73,7 @@ const selectedTipStore = createStore (() => {
 }, [ TipScope ])
 
 function Subtip (props: { id: string }) {
-  const { title } = useTipData (props.id)
+  const title = useTipTitle (props.id)
   const { selectedTipId, setSelectedTipId } = useStore (selectedTipStore)
   const isSelected = props.id === selectedTipId
 
@@ -85,11 +94,11 @@ function ExpandedSubtip () {
 
   if (!selectedTipId) return null
   return (
-    <Suspense>
-      <TipProvider id={selectedTipId}>
+    <TipProvider id={selectedTipId}>
+      <Suspense fallback="...">
         <Tip />
-      </TipProvider>
-    </Suspense>
+      </Suspense>
+    </TipProvider>
   )
 }
 

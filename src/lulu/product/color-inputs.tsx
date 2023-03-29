@@ -1,10 +1,9 @@
 import { useProduct, useSkudataBy } from "./data"
 import { useSkuSelect } from "./selected-sku"
+import { SkudataProvider, useSkudataId } from "./skudata-id"
 
-function ColorInput (props: {
-  sku: string,
-}) {
-  const { sku } = props
+function ColorInput () {
+  const sku = useSkudataId()
   
   const { swatch } = useSkudataBy (sku)
   const { isSelected, onSkuSelect } = useSkuSelect (sku)
@@ -22,10 +21,19 @@ export function ColorInputs (props: {
 }) {
   const { skudatas } = useProduct()
   
-  const content = skudatas
+  const skus = skudatas
     .map (s => s.id)
     .slice (0, (props.amount ?? skudatas.length))
-    .map (sku => <ColorInput key={sku} sku={sku} />)
+
+  const items = skus.map (sku => (
+    <SkudataProvider key={sku} id={sku}>
+      <ColorInput />
+    </SkudataProvider>
+  ))
   
-  return <div className="flex flex-row space-x-2">{content}</div>
+  return (
+    <div className="flex flex-row space-x-2">
+      {items}
+    </div>
+  )
 }

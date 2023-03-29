@@ -2,7 +2,7 @@ import { ComponentType, lazy, Suspense, useMemo } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 
 const CounterExample = lazy (() => import ("./counter"))
-const ProductPage = lazy (() => import ("./product"))
+const ProductPage = lazy (() => import ("./lulu/pdp"))
 const TipExample = lazy (() => import ("./tips"))
 
 function matchPath (options: Record <string, ComponentType>) {
@@ -18,7 +18,7 @@ function Navbar () {
   return (
     <nav className="border-b w-full p-4 flex flex-row space-x-8">
       <span>Examples:</span>
-      <a href="">Counter</a>
+      <a href="/">Counter</a>
       <a href="/tooltips">Recursive Tooltip</a>
       <a href="/product">Product Page</a>
     </nav>

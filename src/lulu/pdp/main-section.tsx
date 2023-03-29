@@ -1,10 +1,10 @@
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { ColorInputs } from "./color-inputs"
-import { useSkudataBy } from "./data"
-import { Gallery } from "./gallery"
-import { ProductLabel } from "./label"
-import { useActiveSku } from "./selected-sku"
+import { ColorInputs } from "../product/color-inputs"
+import { useSkudataBy } from "../product/data"
+import { Gallery } from "../product/gallery"
+import { ProductLabel } from "../product/label"
+import { useActiveSku } from "../product/selected-sku"
 
 function ColorFieldLabel () {
   const activeSku = useActiveSku ()

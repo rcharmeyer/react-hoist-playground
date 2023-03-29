@@ -88,7 +88,7 @@ export function createScope () {
   const InternalContext = createContext <StoreBuilder> (undefined as any)
   InternalContext.Provider = memo (InternalContext.Provider)
 
-  const provider: Scope = memo ((props: PropsWithChildren) => {
+  const scope: Partial<Scope> = memo ((props: PropsWithChildren) => {
     console.log ("Scope running")
     
     const rendererStore = useMemo (() => {
@@ -144,43 +144,20 @@ export function createScope () {
 
     return (
       <InternalContext.Provider value={getStore}>
-        <ScopeProvider scope={provider}>
-          {renderedStores}
+        <ScopeProvider scope={scope as Scope}>
           <Suspense>
             {props.children}
           </Suspense>
+          {renderedStores}
         </ScopeProvider>
       </InternalContext.Provider>
     )
   })
 
   // TODO: Support imperfect scoping
-  provider.context = InternalContext
+  scope.context = InternalContext
 
-  const hoist = <T extends Func0> (hook: T): T => {
-    const res: any = () => {
-      const getStore = useContext (InternalContext)
-      const store = getStore (hook)
-      const { result, thrown } = useSyncExternalStore (
-        store.subscribe, 
-        store.getSnapshot,
-        store.getSnapshot,
-      )
-
-      if (thrown) throw thrown
-      return result
-    }
-
-    return res as T
-  }
-
-  type TheScope = typeof provider & {
-    hoist: typeof hoist
-  }
-
-  const scope: TheScope = provider as any
-  scope.hoist = hoist
-  return scope
+  return scope as Scope
 }
 
 export function createStore <T> (hook: () => T, deps: Scope[]): Store<T> {
@@ -212,4 +189,21 @@ export function useStore <T> (store: Store <T>): T {
 
   if (thrown) throw thrown
   return result
+}
+
+// helpers
+
+export function createStoreFamily <T extends Func> (hook: T, deps: Scope[]) {
+  return memoize ((...args: Parameters <T>) => {
+    const res = createStore (() => hook (...args), deps)
+    return res as Store <ReturnType <T>>
+  })
+}
+
+export function hoist <T extends Func> (hook: T, deps: Scope[]) {
+  const storeFamily = createStoreFamily <T> (hook, deps)
+  return (...args: Parameters <T>): ReturnType <T> => {
+    const store = storeFamily (...args)
+    return useStore (store)
+  }
 }

@@ -17,14 +17,20 @@ function Button (props: {
   onClick: () => void, 
 }) {
   return (
-    <button type="button" onClick={props.onClick}>{props.text}</button>
+    <button
+      className="w-4 p-0 leading-none" 
+      type="button" 
+      onClick={props.onClick}
+    >
+      {props.text}
+    </button>
   )
 }
 
 function Counter () {
   const { count, setCount } = useCountState ()
   return (
-    <div>
+    <div className="border rounded-lg w-20 p-2 flex flex-row justify-between items-center">
       <Button text="-" onClick={() => setCount (count - 1)} />
       <span>{count}</span>
       <Button text="+" onClick={() => setCount (count + 1)} />
@@ -35,10 +41,20 @@ function Counter () {
 export default function CounterExample () {
   return (
     <Suspense>
-      <CounterScope>
-        <Counter />
-        <Counter />
-      </CounterScope>
+      <div className="flex flex-col items-center">
+        <CounterScope>
+          <h2>These share state</h2>
+          <div className="flex flex-row space-x-4">
+            <Counter />
+            <Counter />
+          </div>
+          <br />
+          <h2>This one does not share state</h2>
+          <CounterScope>
+            <Counter />
+          </CounterScope>
+        </CounterScope>
+      </div>
     </Suspense>
   )
 }
