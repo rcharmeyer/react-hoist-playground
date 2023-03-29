@@ -1,6 +1,6 @@
-import { fetchRecommendationsById } from "../../data/product"
-import { makeAsync } from "../../hooks"
-import { hoist, useStore } from "../../scope"
+import { fetchRecommendationsById } from "../data/product"
+import { makeAsync } from "../../lib/hooks"
+import { hoist, useStore } from "../../lib/scope"
 import { ProductCard } from "../product/card"
 import { useProductId, ProductProvider, ProductScope } from "../product/product-id"
 

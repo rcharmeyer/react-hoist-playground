@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { ErrorBoundary } from "react-error-boundary"
-import { getPageProductId } from "../../data/product"
+import { getPageProductId } from "../data/product"
 import { MainSection } from "./main-section"
 import { ProductProvider } from "../product/product-id"
 import { RecommenderSection } from "./recommendations"

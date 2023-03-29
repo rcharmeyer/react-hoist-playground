@@ -1,6 +1,6 @@
 import { hoist } from "../../lib/scope"
 import { useSkudataBy } from "./data"
-import { ProductScope } from "./product-id"
+import { ProductScope } from "./product-context"
 import { useActiveSku } from "./selected-sku"
 
 const useActiveSkuImage = hoist (() => {
