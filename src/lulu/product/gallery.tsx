@@ -1,4 +1,4 @@
-import { hoist } from "../../lib/scope"
+import { hoist } from "@rcharmeyer/react-utils"
 import { useSkudataBy } from "./data"
 import { ProductScope } from "./product-id"
 import { useActiveSku } from "./selected-sku"

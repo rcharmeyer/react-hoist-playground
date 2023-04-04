@@ -299,6 +299,14 @@
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
 
+"@rcharmeyer/react-utils@^0.0.13-fixlogs.2":
+  version "0.0.13-fixlogs.2"
+  resolved "https://registry.yarnpkg.com/@rcharmeyer/react-utils/-/react-utils-0.0.13-fixlogs.2.tgz#2afc3da846d5be7407b651470210f0eb2952e822"
+  integrity sha512-mOTZHYrDvHHJF58cJi/wA5yjRPC+6XjXyu3tt3Ls/TOyhZIevdJdH4rbWt0LnQwnRDDvF72ZnRW+X3vDx/Ty+w==
+  dependencies:
+    lodash-es "^4.17.21"
+    shallowequal "^1.1.0"
+
 "@types/lodash-es@^4.0.0":
   version "4.17.6"
   resolved "https://registry.yarnpkg.com/@types/lodash-es/-/lodash-es-4.17.6.tgz#c2ed4c8320ffa6f11b43eb89e9eaeec65966a0a0"
@@ -612,7 +620,7 @@ json5@^2.2.2:
   resolved "https://registry.yarnpkg.com/json5/-/json5-2.2.3.tgz#78cd6f1a19bdc12b73db5ad0c61efd66c1e29283"
   integrity sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==
 
-lodash-es@^4.0.0:
+lodash-es@^4.0.0, lodash-es@^4.17.21:
   version "4.17.21"
   resolved "https://registry.yarnpkg.com/lodash-es/-/lodash-es-4.17.21.tgz#43e626c46e6591b7750beb2b50117390c609e3ee"
   integrity sha512-mKnC+QJ9pWVzv+C4/U3rRsHapFfHvQFoFB92e52xeyGMcX6/OlIl78je1u8vePzYZSkkogMPJ2yjxxsb89cxyw==

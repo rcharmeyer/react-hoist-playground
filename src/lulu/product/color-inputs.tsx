@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import { useProduct, useSkudataBy } from "./data"
 import { useSkuSelect } from "./selected-sku"
 import { SkudataProvider, useSkudataId } from "./skudata-id"
@@ -16,6 +17,12 @@ function ColorInput () {
   return <img className={className} src={swatch} onClick={onSkuSelect} />
 }
 
+function ColorInputFallback () {
+  return (
+    <div className="h-6 w-6 rounded-full bg-slate-100" />
+  )
+}
+
 export function ColorInputs (props: {
   amount?: number,
 }) {
@@ -27,7 +34,9 @@ export function ColorInputs (props: {
 
   const items = skus.map (sku => (
     <SkudataProvider key={sku} id={sku}>
-      <ColorInput />
+      <Suspense fallback={<ColorInputFallback />}>
+        <ColorInput />
+      </Suspense>
     </SkudataProvider>
   ))
   

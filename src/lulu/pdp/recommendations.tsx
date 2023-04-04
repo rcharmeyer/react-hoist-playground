@@ -1,8 +1,9 @@
 import { fetchRecommendationsById } from "../data/product"
 import { makeAsync } from "../../lib/hooks"
-import { hoist, useStore } from "../../lib/scope"
+import { hoist, useStore } from "@rcharmeyer/react-utils"
 import { ProductCard } from "../product/card"
 import { useProductId, ProductProvider, ProductScope } from "../product/product-id"
+import { Suspense } from "react"
 
 const useRecommendationsById = makeAsync (fetchRecommendationsById)
 
