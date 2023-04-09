@@ -14,6 +14,7 @@ export type Product = {
   id: string,
   name: string,
   price: string,
+  length: string,
   skudatas: Skudata[]
 }
 
@@ -53,6 +54,7 @@ PRODUCTS.push ({
   id: "align-25",
   name: "Align™ Pant 25\"",
   price: "$98 - $118",
+  length: '25"',
   skudatas: [],
 })
 
@@ -90,6 +92,7 @@ PRODUCTS.push ({
   id: "align-28",
   name: "Align™ Pant 28\"",
   price: "$98 - $118",
+  length: '28"',
   skudatas: [],
 })
 
@@ -134,6 +137,7 @@ PRODUCTS.push ({
   id: "align-31",
   name: "Align™ Pant 31\"",
   price: "$98 - $118",
+  length: '31"',
   skudatas: [],
 })
 
@@ -171,7 +175,7 @@ PRODUCTS[2].skudatas.push ({
 
 const PRODUCT_RECS = {} as Record <string, string[]>
 
-export const fetchRecommendationsById = async (id: string) => {
+export async function fetchRecommendationsById (id: string) {
   console.log ("fetching product data")
   const res = PRODUCT_RECS[id]
   return res as string[]
@@ -185,4 +189,15 @@ for (let i = 0; i < len; i++) {
     if (i === j) continue
     PRODUCT_RECS [pid].push (PRODUCTS[j].id)
   }
+}
+
+
+
+// SEARCH
+
+export async function fetchProductsByLengths (lengths: string[]) {
+  if (!lengths.length) return PRODUCTS
+  const products = PRODUCTS
+    .filter (p => lengths.includes (p.length))
+  return products
 }

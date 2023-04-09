@@ -2,8 +2,10 @@ import { ComponentType, lazy, Suspense, useMemo } from "react"
 import { ErrorBoundary } from "react-error-boundary"
 
 const CounterExample = lazy (() => import ("./counter"))
-const ProductPage = lazy (() => import ("./lulu/pdp"))
 const TipExample = lazy (() => import ("./tips"))
+
+const ProductPage = lazy (() => import ("./lulu/pdp"))
+const SearchPage = lazy (() => import ("./lulu/search"))
 
 function matchPath (options: Record <string, ComponentType>) {
   const { pathname } = window.location
@@ -21,6 +23,7 @@ function Navbar () {
       <a href="/">Counter</a>
       <a href="/tooltips">Recursive Tooltip</a>
       <a href="/product">Product Page</a>
+      <a href="/search">Product Search</a>
     </nav>
   )
 }
@@ -30,6 +33,7 @@ export function App () {
     "": CounterExample,
     "tooltips": TipExample,
     "product": ProductPage,
+    "search": SearchPage,
   }), [])
 
   return (

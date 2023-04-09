@@ -6,9 +6,10 @@ export function ProductLabel (props: {
 }) {
   const { id, name, price } = useProduct ()
   const href = `/product/${id}`
-
+  
   let titleClass = "font-bold text-black"
   let priceClass = "text-sm"
+  
   if (! props.small) titleClass += " text-2xl"
   
   return (
