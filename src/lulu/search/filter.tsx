@@ -1,5 +1,5 @@
 import { createStore, hoist, useEvent, useMemoShallow, useStore, useStruct } from "@rcharmeyer/react-utils"
-import { useReducer, useTransition } from "react"
+import { useReducer } from "react"
 
 type Filters = Record <string, boolean|undefined>
 
@@ -30,6 +30,7 @@ export function useActiveFilters () {
     const res = Object.entries (filters)
       .filter (([ , val ]) => val)
       .map (([ key ]) => key)
+      .sort ()
     return res
   }, [ filters ])
 }
