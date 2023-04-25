@@ -1,6 +1,13 @@
+import { Suspense } from "react"
 import { ColorInputs } from "./color-inputs"
 import { Gallery } from "./gallery"
 import { ProductLabel } from "./label"
+
+function ProductCardFallback () {
+  return (
+    <div className="rounded-xl w-full h-full bg-slate-100" />
+  )
+}
 
 export function ProductCard () {
   let innerClass = "p-2 space-y-2"
@@ -9,11 +16,13 @@ export function ProductCard () {
 
   return (
     <div className="w-36">
-      <Gallery className="rounded-t-xl" />
-      <div className={innerClass}>
-        <ColorInputs amount={3} />
-        <ProductLabel className="text-center" small />
-      </div>
+      <Suspense fallback={<ProductCardFallback />}>
+        <Gallery className="rounded-t-xl" />
+        <div className={innerClass}>
+          <ColorInputs amount={3} />
+          <ProductLabel className="text-center" small />
+        </div>
+      </Suspense>
     </div>
   )
 }

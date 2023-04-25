@@ -1,5 +1,5 @@
 import { createContext, memo, PropsWithChildren, useContext } from "react"
-import { createScope, createStore, useStore } from "../../lib/scope"
+import { createScope } from "@rcharmeyer/react-utils"
 
 export const ProductScope = createScope ()
 

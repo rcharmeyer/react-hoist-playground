@@ -1,6 +1,6 @@
 import { Suspense, useState } from "react"
 import { useValueShallow } from "../lib/hooks"
-import { createScope, createStore, useStore } from "../lib/scope"
+import { createScope, createStore, useStore } from "@rcharmeyer/react-utils"
 
 const CounterScope = createScope ()
 
@@ -10,7 +10,12 @@ const countStore = createStore (() => {
   return useValueShallow ({ count, setCount })
 }, [ CounterScope ])
 
-const useCountState = () => useStore (countStore)
+const _countStore = createStore (() => {
+  console.log ("_countStore")
+  return useStore (countStore)
+}, [ CounterScope ])
+
+const useCountState = () => useStore (_countStore)
 
 function Button (props: {
   text: string, 
@@ -38,9 +43,13 @@ function Counter () {
   )
 }
 
+function Loading () {
+  return <div>Loading...</div>
+}
+
 export default function CounterExample () {
   return (
-    <Suspense>
+    <Suspense fallback={<Loading />}>
       <div className="flex flex-col items-center">
         <CounterScope>
           <h2>These share state</h2>

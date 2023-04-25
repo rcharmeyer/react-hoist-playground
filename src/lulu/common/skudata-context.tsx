@@ -1,5 +1,5 @@
 import { createContext, memo, PropsWithChildren, useContext } from "react"
-import { createScope, createStore, useStore } from "../../lib/scope"
+import { createScope, createStore, useStore } from "@rcharmeyer/react-utils"
 
 export const SkudataScope = createScope ()
 

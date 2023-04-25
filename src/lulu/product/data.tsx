@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import { fetchProductById, Skudata } from "../data/product"
 import { makeAsync } from "../../lib/hooks"
-import { hoist } from "../../lib/scope"
+import { hoist } from "@rcharmeyer/react-utils"
 import { ProductScope, useProductId } from "./product-id"
 
 const useProductDataById = makeAsync (fetchProductById)
